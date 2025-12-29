@@ -1,0 +1,6 @@
+Intro:
+  - Prompt: "Welcome to Big 2! What's your name?"
+    Response: "Hi ${placeholder}, get ready to play...."
+  - Prompt: "Enter the number of players participating today:"
+    Choices: "1,2,3,4"
+    Response: "You'll be going against ${placeholder} other players.\nGet ready to play!"
