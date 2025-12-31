@@ -60,7 +60,6 @@ export class Game {
     const __dirname = dirname(__filename);
     const path = resolve(__dirname, "./script.yaml");
     const script = fs.readFileSync(path, "utf8");
-    // console.log(script);
     return load(script);
   }
 
