@@ -1,24 +1,31 @@
 import fs from "fs";
 import { dirname, resolve } from "path";
 import { fileURLToPath } from "url";
-import { RANK_COUNT } from "./contants.js";
+import { MAX_PLAYERS, SEPARATOR, RANK_COUNT } from "./contants.js";
 import { Deck } from "./deck.js";
 import { Hand } from "./hand.js";
 import { Player } from "./player.js";
 import { load } from "js-yaml";
 import { input, select } from "@inquirer/prompts";
 
+const logMessage = (message) => {
+  console.log(SEPARATOR + message + SEPARATOR);
+};
+
 const promptUser = async (entry) => {
+  const userInputs = {};
   const regex = /\$\{placeholder\}/i;
   for (const idx in entry) {
     const obj = entry[idx];
     const prompt = obj["Prompt"];
     const choices = obj["Choices"];
     const response = obj["Response"];
+    const variableName = obj["Variable"];
+    let result = "";
 
     if (prompt) {
       if (choices) {
-        await select({
+        result = await select({
           message: prompt,
           choices: choices.split(",").map((c) => {
             return {
@@ -29,17 +36,24 @@ const promptUser = async (entry) => {
           }),
         });
       } else {
-        await input(
-          { message: prompt },
-          { signal: AbortSignal.timeout(4000) }
-        ).then((answer) => handleUserInput(response, regex, answer));
+        await input({ message: prompt }).then((answer) => {
+          handleUserInput(response, regex, variableName, answer);
+          result = answer.split(",").join("").split(" ");
+        });
       }
     }
+
+    userInputs[variableName] = result;
   }
+  return userInputs;
 };
 
-const handleUserInput = (response, regex, answer) => {
-  console.log(response.replace(regex, answer));
+const handleUserInput = (response, regex, variableName, answer) => {
+  if (variableName == "playerNames") {
+    console.log(response.replace(regex, answer.replace(", ", " + ")));
+  } else {
+    console.log(response.replace(regex, answer));
+  }
 };
 
 export class Game {
@@ -63,16 +77,40 @@ export class Game {
     return load(script);
   }
 
-  startGame() {
-    const script = this.importScript();
+  async initialize() {
+    let userInputs = {};
 
-    Object.entries(script).forEach((part) =>
-      part.forEach((entry) => {
-        if (typeof entry !== "string") {
-          promptUser(entry);
-        }
-      })
-    );
+    for (const [_, entry] of Object.entries(this.importScript())) {
+      if (typeof entry !== "string") {
+        userInputs = await promptUser(entry);
+      }
+    }
+
+    const playerCount = userInputs["playerCount"];
+    const players = userInputs["playerNames"];
+
+    // ensure the expected players matches
+    if (parseInt(playerCount) !== MAX_PLAYERS - players.length) {
+      logMessage(
+        "The number of players doesn't match the number of names. Try again."
+      );
+      this.initialize();
+    } else {
+      this.start(players);
+    }
+  }
+
+  start(players) {
+    // set up the live players
+    players.forEach((p) => {
+      const player = new Player(this.#getHand(), p);
+      console.log(this.addPlayer(player));
+    });
+    // set up the computer players
+    const computerPlayers = MAX_PLAYERS - players.length;
+    for (let i = 0; i < computerPlayers; i++) {
+      console.log(this.addPlayer());
+    }
   }
 
   addPlayer(player = new Player(this.#getHand())) {
@@ -101,4 +139,4 @@ const game = new Game();
 //   game.addPlayer().getHand();
 // }
 
-game.startGame();
+game.initialize();

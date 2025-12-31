@@ -1,6 +1,8 @@
 export const DECK_SIZE = 52;
-
+export const MAX_PLAYERS = 4;
 export const RANK_COUNT = 13;
+export const SEPARATOR =
+  "\n=============================================================================\n";
 
 export const SUITS = {
   CLUBS: "CLUBS",
