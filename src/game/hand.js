@@ -40,15 +40,25 @@ export class Hand {
   }
 
   logMove() {
-    console.table(this.cards, ["suit", "symbol", "rank"]);
+    console.table(
+      this.cards.reduce((prev, { rank, ...x }) => {
+        prev[rank] = x;
+        return prev;
+      }, {}),
+      ["suit", "symbol"]
+    );
   }
 
-  printCards(player) {
+  toString() {
+    return this.cards
+      .map((c) => `${c.symbol} ${c.name || c.rank}`)
+      .join(" || ");
+  }
+
+  printCards(playerName) {
     console.log("=============================================");
-    console.log(`Player ${player.name} has the following cards:`);
-    console.log(
-      this.cards.map((c) => `${c.symbol} ${c.name || c.rank}`).join(" || ")
-    );
+    console.log(`Player ${playerName} has the following cards:`);
+    console.log(this.toString());
     console.log("=============================================");
   }
 }

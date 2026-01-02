@@ -140,17 +140,20 @@ export class Game {
     });
     // set up the computer players
     const computerPlayers = MAX_PLAYERS - players.length;
-    for (let i = 0; i <= computerPlayers; i++) {
+    for (let i = 0; i < computerPlayers; i++) {
       this.addPlayer();
     }
-    this.startRound();
-    this.isGameOver();
+    this.players.forEach((p) => {
+      console.log(p.hand.toString());
+      p.calculateCombos();
+    });
+    // this.startRound();
   }
 
   isGameOver() {
     // game ends when a single player has finished all their cards
     this.players.forEach((p) =>
-      console.log(`\n${p.name} has ${p.hand.cards.length} left`)
+      console.log(`\n${p.name} has ${p.hand.cards.length} cards left .....`)
     );
     return this.players.some((p) => p.hand.cards.length === 0);
   }
@@ -171,22 +174,28 @@ export class Game {
 
   async startRound() {
     let lastComboPlayed;
-    let lastPlayer;
-    for (const player of this.players) {
-      logMove(
-        `${player.name} is playing their turn${
-          lastPlayer !== null ? ` after ${lastPlayer}` : ``
-        }!`
-      );
-      if (!player.isComputer) {
-        lastComboPlayed = await promptUserDuringGame(player);
-      } else {
-        let { comboPlayed } = player.autoPlay(lastComboPlayed);
-        lastComboPlayed = comboPlayed;
-      }
+    let lastPlayer = "";
+    const [winner] = this.players
+      .filter((p) => p.hand.cards.length === 0)
+      .map((p) => p.name);
+    while (!this.isGameOver()) {
+      for (const player of this.players) {
+        logMove(
+          `${player.name} is playing their turn${
+            lastPlayer.length > 0 ? ` after ${lastPlayer}` : ``
+          }!`
+        );
+        if (!player.isComputer) {
+          lastComboPlayed = await promptUserDuringGame(player);
+        } else {
+          let { comboPlayed } = player.autoPlay(lastComboPlayed);
+          lastComboPlayed = comboPlayed;
+        }
 
-      lastPlayer = player.name;
+        lastPlayer = player.name;
+      }
     }
+    logMessage(`The game has ended! ${winner} is the winner!`);
   }
 
   #getHand() {

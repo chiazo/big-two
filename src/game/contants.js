@@ -1,3 +1,5 @@
+import { Hand } from "./hand.js";
+
 export const DECK_SIZE = 52;
 export const MAX_PLAYERS = 4;
 export const MAX_PLAYABLE_CARDS = 5;
@@ -68,16 +70,34 @@ export const CARD_COMBOS = {
   },
 };
 
+export const FULL_HAND_TYPES = {
+  STRAIGHT: "STRAIGHT",
+  FLUSH: "FLUSH",
+  FULL_HOUSE: "FULL_HOUSE",
+  FOUR_OF_A_KIND: "FOUR_OF_A_KIND",
+  STRAIGHT_FLUSH: "STRAIGHT_FLUSH",
+};
+
 export const FULL_HAND_COMBO = {
-  STRAIGHT: { valid: (h) => isStraight(h) },
-  FLUSH: { valid: (h) => isFlush(h) },
-  FULL_HOUSE: { valid: (h) => isFullHouse(h) },
-  FOUR_OF_A_KIND: { valid: (h) => isFourOfAKind(h) },
-  STRAIGHT_FLUSH: { valid: (h) => isFlush(h) && isStraight(h) },
+  [FULL_HAND_TYPES.STRAIGHT]: { sequential: true, valid: (h) => isStraight(h) },
+  [FULL_HAND_TYPES.FLUSH]: { sequential: false, valid: (h) => isFlush(h) },
+  [FULL_HAND_TYPES.FULL_HOUSE]: {
+    sequential: false,
+    valid: (h) => isFullHouse(h),
+  },
+  [FULL_HAND_TYPES.FOUR_OF_A_KIND]: {
+    sequential: false,
+    valid: (h) => isFourOfAKind(h),
+  },
+  [FULL_HAND_TYPES.STRAIGHT_FLUSH]: {
+    sequential: true,
+    valid: (h) => isFlush(h) && isStraight(h),
+  },
 };
 
 const isSequential = (a, b) => b - a === 1;
 
+// Five cards of any suit in order
 const isStraight = (hand) => {
   const sequence = hand.rank().reduce(
     (results, card) => {
@@ -94,42 +114,117 @@ const isStraight = (hand) => {
   return result.length === 1 && result[0];
 };
 
+// Five cards of the same suit, irrespective of rank
 const isFlush = (hand) => {
   return [...new Set(hand.suit())].length === 1;
 };
 
+// A triple and a pair
 const isFullHouse = (hand) => {
   const counts = calculateHandCount(hand);
-  return findHandCount(hand, counts, 3) && findHandCount(hand, counts, 2);
+  return (
+    findHandCount(counts, CARD_COMBOS[COMBOS.TRIPLE].count) &&
+    findHandCount(counts, CARD_COMBOS[COMBOS.PAIR].count)
+  );
 };
 
+// Four cards of the same rank and one random card
 const isFourOfAKind = (hand) => {
   const atMostTwoSuits = [...new Set(hand.suit())].length < 3;
   if (!atMostTwoSuits) {
     return false;
   }
 
-  return findHandCount(hand, calculateHandCount(hand), 4);
+  return findHandCount(calculateHandCount(hand), 4);
 };
 
-const calculateHandCount = (hand) => {
+// counts the unique number of cards for a specific rank or suit in a hand
+export const calculateHandCount = (hand, isRankCount = true) => {
   const counts = {};
-  for (const int of hand.rank()) {
-    if (int in counts) {
-      counts[int]++;
+  const handIterable = isRankCount ? hand.rank() : hand.suit();
+  for (const symbol of handIterable) {
+    if (symbol in counts) {
+      counts[symbol]++;
     } else {
-      counts[int] = 1;
+      counts[symbol] = 1;
     }
   }
   return counts;
 };
 
-const findHandCount = (hand, counts, desiredCount) => {
-  for (const int of Object.values(counts)) {
-    if (int === desiredCount) return true;
+// filters on whether the explict count desired is represented in a given hand
+const findHandCount = (counts, desiredCount) => {
+  for (const [rank, count] of Object.entries(counts)) {
+    if (count === desiredCount) return rank;
   }
 
-  return false;
+  return "";
+};
+
+// returns unique count of each rank and suit
+export const fullHandCount = (hand) => {
+  return {
+    rankCount: calculateHandCount(hand),
+    suitCount: calculateHandCount(hand, false),
+  };
+};
+
+// returns which non-sequential combos are present in a player's hand
+export const findFullHandNonSequentialCombos = (hand, fullHand) => {
+  const reverseHand = hand.cards.reverse();
+  const { rankCount, suitCount } = fullHandCount(hand);
+  const fourOfAKind = {
+    cards: [],
+    type: FULL_HAND_TYPES.FOUR_OF_A_KIND,
+  };
+  const fullHouse = {
+    triples: [],
+    doubles: [],
+    type: FULL_HAND_TYPES.FULL_HOUSE,
+  };
+  const fourCount = 4;
+  const tripleCount = 3;
+  const doubleCount = 2;
+
+  for (const rank in rankCount) {
+    const count = rankCount[rank];
+    if (count === fourCount) {
+      fourOfAKind.cards.push(
+        reverseHand.filter((c) => c.rank === rank).slice(0, fourCount)
+      );
+    }
+    if (count === tripleCount) {
+      fullHouse.triples.push({
+        hand: reverseHand.filter((c) => c.rank === rank).slice(0, tripleCount),
+      });
+    }
+    if (count === doubleCount) {
+      fullHouse.doubles.push({
+        hand: reverseHand.filter((c) => c.rank === rank).slice(0, doubleCount),
+      });
+    }
+  }
+
+  if (fourOfAKind.cards.length > 1) {
+    fullHand.push(fourOfAKind);
+  }
+
+  if (fullHouse.doubles.length > 1 && fullHouse.triples > 1) {
+    fullHand.push(fullHouse);
+  }
+  for (const suit in suitCount) {
+    const count = suitCount[suit];
+    if (count === MAX_PLAYABLE_CARDS) {
+      fullHand.push({
+        hand: new Hand(
+          reverseHand
+            .filter((c) => c.suit === suit)
+            .slice(0, MAX_PLAYABLE_CARDS)
+        ),
+        type: FULL_HAND_TYPES.FLUSH,
+      });
+    }
+  }
 };
 
 export const RANKS = {
