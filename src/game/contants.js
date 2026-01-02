@@ -21,32 +21,42 @@ export const SUITS = {
   SPADES: { name: "SPADES", symbol: "♠" },
 };
 
+export const COMBOS = {
+  SINGLE: "SINGLE",
+  PAIR: "PAIR",
+  TRIPLE: "TRIPLE",
+  FULL_HAND: "FULL_HAND",
+};
+
 export const CARD_COMBOS = {
-  SINGLE: {
+  [COMBOS.SINGLE]: {
     count: 1,
     valid: (h) => {
+      h.type = COMBOS.SINGLE;
       return h.cards.length === 1;
     },
     comparison: (a, b) => {
       a.rank - b.rank;
     },
   },
-  PAIR: {
+  [COMBOS.PAIR]: {
     count: 2,
     valid: (h) => {
+      h.type = COMBOS.PAIR;
       return h.cards.length === 2 && [...new Set(h.rank())].length == 1;
     },
     comparison: (a, b) => {
       a.rank - b.rank;
     },
   },
-  TRIPLE: {
+  [COMBOS.TRIPLE]: {
     count: 3,
     valid: (h) => {
+      h.type = COMBOS.TRIPLE;
       return h.cards.length === 3 && [...new Set(h.rank())].length == 1;
     },
   },
-  FULL_HAND: {
+  [COMBOS.FULL_HAND]: {
     count: 5,
     valid: (h) => {
       const [[type]] = Object.entries(FULL_HAND_COMBO).filter(([, f]) => {
@@ -138,4 +148,8 @@ export const RANKS = {
     QUEEN: 12,
     KING: 13,
   },
+};
+
+export const logMessage = (message) => {
+  console.log(SEPARATOR + message + SEPARATOR);
 };

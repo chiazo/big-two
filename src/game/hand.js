@@ -39,11 +39,16 @@ export class Hand {
     }
   }
 
+  logMove() {
+    console.table(this.cards, ["suit", "symbol", "rank"]);
+  }
+
   printCards(player) {
     console.log("=============================================");
     console.log(`Player ${player.name} has the following cards:`);
     console.log(
       this.cards.map((c) => `${c.symbol} ${c.name || c.rank}`).join(" || ")
     );
+    console.log("=============================================");
   }
 }

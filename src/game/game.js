@@ -1,7 +1,7 @@
 import fs from "fs";
 import { dirname, resolve } from "path";
 import { fileURLToPath } from "url";
-import { MAX_PLAYERS, SEPARATOR, RANK_COUNT } from "./contants.js";
+import { MAX_PLAYERS, logMessage, RANK_COUNT } from "./contants.js";
 import { Deck } from "./deck.js";
 import { Hand } from "./hand.js";
 import { Player } from "./player.js";
@@ -9,9 +9,7 @@ import { load } from "js-yaml";
 import { input, select } from "@inquirer/prompts";
 import { select as multi } from "inquirer-select-pro";
 
-const logMessage = (message) => {
-  console.log(SEPARATOR + message + SEPARATOR);
-};
+/* HELPER METHODS */
 
 const logMove = (message) => {
   console.log(` ---- ${message} ---- `);
@@ -65,16 +63,15 @@ const promptUserDuringGame = async (player) => {
   const combo = player.hand.cards.filter((c) =>
     selectedCards.includes(c.toString())
   );
-  const { validCombo, lastComboPlayed, error } = player.playCombo(
-    new Hand(combo)
-  );
+
+  const { validCombo, comboPlayed, error } = player.playCombo(new Hand(combo));
   if (!validCombo) {
     logMessage(
       `${player.name} played an invalid combo (err: ${error}). Try again.`
     );
     await promptUserDuringGame(player);
   }
-  return lastComboPlayed;
+  return comboPlayed;
 };
 
 const handleUserInput = (response, regex, variableName, answer) => {
@@ -138,15 +135,24 @@ export class Game {
   start(players) {
     // set up the live players
     players.forEach((p) => {
-      const player = new Player(this.#getHand(), p);
+      const player = new Player(this.#getHand(), p, false);
       this.addPlayer(player);
     });
     // set up the computer players
     const computerPlayers = MAX_PLAYERS - players.length;
-    for (let i = 0; i < computerPlayers; i++) {
+    for (let i = 0; i <= computerPlayers; i++) {
       this.addPlayer();
     }
     this.startRound();
+    this.isGameOver();
+  }
+
+  isGameOver() {
+    // game ends when a single player has finished all their cards
+    this.players.forEach((p) =>
+      console.log(`\n${p.name} has ${p.hand.cards.length} left`)
+    );
+    return this.players.some((p) => p.hand.cards.length === 0);
   }
 
   restart(message) {
@@ -159,21 +165,27 @@ export class Game {
   addPlayer(player = new Player(this.#getHand())) {
     if (this.players.length < 5) {
       this.players.push(player);
-      player.getHand();
       return player;
     }
   }
 
   async startRound() {
     let lastComboPlayed;
+    let lastPlayer;
     for (const player of this.players) {
-      logMove(`${player.name} is playing their turn!`);
+      logMove(
+        `${player.name} is playing their turn${
+          lastPlayer !== null ? ` after ${lastPlayer}` : ``
+        }!`
+      );
       if (!player.isComputer) {
         lastComboPlayed = await promptUserDuringGame(player);
       } else {
-        player.autoPlay(lastComboPlayed);
+        let { comboPlayed } = player.autoPlay(lastComboPlayed);
+        lastComboPlayed = comboPlayed;
       }
-      logMove(`They played a ${lastComboPlayed.type}!`);
+
+      lastPlayer = player.name;
     }
   }
 

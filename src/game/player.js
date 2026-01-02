@@ -1,4 +1,4 @@
-import { CARD_COMBOS, MAX_PLAYABLE_CARDS } from "./contants.js";
+import { CARD_COMBOS, logMessage, MAX_PLAYABLE_CARDS } from "./contants.js";
 import { Hand } from "./hand.js";
 
 export class Player {
@@ -8,7 +8,7 @@ export class Player {
   isComputer;
   lastComboPlayed;
 
-  constructor(hand, name = this.randomName(), isComputer = false) {
+  constructor(hand, name = this.randomName(), isComputer = true) {
     this.hand = hand;
     this.name = name;
     this.isComputer = isComputer;
@@ -33,14 +33,14 @@ export class Player {
     if (existingCardCombo == null) {
       return {
         validCombo: false,
-        lastComboPlayed: null,
+        comboPlayed: null,
         error: "the number of cards selected is invalid",
       };
     }
     if (!existingCardCombo.valid(combo)) {
       return {
         validCombo: false,
-        lastComboPlayed: null,
+        comboPlayed: null,
         error: "the given card combo is invalid",
       };
     }
@@ -51,16 +51,16 @@ export class Player {
     ) {
       return {
         validCombo: false,
-        lastComboPlayed: null,
+        comboPlayed: null,
         error: "the card count is too little or too high",
       };
     }
 
     this.lastComboPlayed = combo;
-    this.hand.cards = this.hand.cards.filter((c) => combo.cards.includes(c));
+    this.hand.cards = this.hand.cards.filter((c) => !combo.cards.includes(c));
     return {
       validCombo: true,
-      lastComboPlayed: combo,
+      comboPlayed: combo,
     };
   }
 
@@ -68,12 +68,20 @@ export class Player {
     if (!this.isComputer) {
       return;
     }
-    this.playBestHand(lastComboPlayed);
+    return this.playBestHand(lastComboPlayed);
   }
 
-  autoPlayBestHand(lastComboPlayed) {
-    console.log(`Dummy play best hand; Last combo played: `, lastComboPlayed);
-    this.playCombo(new Hand(this.hand.cards.slice(0, 3)));
+  playBestHand(lastComboPlayed) {
+    const minCardsNeeded = lastComboPlayed == null ? 1 : lastComboPlayed.length;
+    const move = this.hand.cards.splice(0, minCardsNeeded);
+    const hand = new Hand(move);
+    const result = this.playCombo(hand);
+    if (result.validCombo && result.comboPlayed) {
+      hand.logMove();
+    } else {
+      logMessage(`Uh oh! ${this.name} played an invalid combo`);
+    }
+    return result;
   }
 
   getHand() {
