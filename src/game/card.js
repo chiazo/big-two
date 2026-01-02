@@ -1,4 +1,4 @@
-import { SUITS, RANKS } from "./contants.js";
+import { SUITS, RANKS } from "./common.js";
 
 export class Card {
   suit;

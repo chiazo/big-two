@@ -1,5 +1,5 @@
 import { Card } from "./card.js";
-import { SUITS, DECK_SIZE, RANK_COUNT, RANKS } from "./contants.js";
+import { SUITS, DECK_SIZE, RANK_COUNT, RANKS } from "./common.js";
 
 export class Deck {
   size;

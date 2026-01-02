@@ -1,7 +1,7 @@
 import fs from "fs";
 import { dirname, resolve } from "path";
 import { fileURLToPath } from "url";
-import { MAX_PLAYERS, logMessage, RANK_COUNT } from "./contants.js";
+import { MAX_PLAYERS, logMessage, RANK_COUNT } from "./common.js";
 import { Deck } from "./deck.js";
 import { Hand } from "./hand.js";
 import { Player } from "./player.js";
@@ -143,18 +143,15 @@ export class Game {
     for (let i = 0; i < computerPlayers; i++) {
       this.addPlayer();
     }
-    this.players.forEach((p) => {
-      console.log(p.hand.toString());
-      p.calculateCombos();
-    });
-    // this.startRound();
+
+    this.startRound();
   }
 
   isGameOver() {
     // game ends when a single player has finished all their cards
-    this.players.forEach((p) =>
-      console.log(`\n${p.name} has ${p.hand.cards.length} cards left .....`)
-    );
+    this.players.forEach((p) => {
+      p.calculateCombos();
+    });
     return this.players.some((p) => p.hand.cards.length === 0);
   }
 

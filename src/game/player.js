@@ -2,12 +2,12 @@ import {
   calculateHandCount,
   CARD_COMBOS,
   COMBOS,
-  findFullHandNonSequentialCombos,
+  buildNonSequentialCombos,
   FULL_HAND_COMBO,
   logMessage,
   MAX_PLAYABLE_CARDS,
   SEPARATOR,
-} from "./contants.js";
+} from "./common.js";
 import { Hand } from "./hand.js";
 
 export class Player {
@@ -102,13 +102,15 @@ export class Player {
   }
 
   logCombos() {
-    console.log(`${this.name} - wowza!`);
+    console.log(` -------- The combos you have available are: -------- `);
     for (const type of Object.keys(this.combos)) {
       const values = this.combos[type];
       console.log(
-        `type — ${type}:`,
+        `${type}:`,
         values.map(
-          (v) => v.rank || v.hand.toString() + ` — ${v.type}` || v.type
+          (v) =>
+            v.rank ||
+            (v.hand !== undefined ? v.hand.toString() + ` — ${v.type}` : v.type)
         )
       );
     }
@@ -122,7 +124,9 @@ export class Player {
     this.getTripleCombos(combos);
     this.getFullHandCombos(combos);
     this.combos = combos;
-    this.logCombos();
+    if (!this.isComputer) {
+      this.logCombos();
+    }
   }
 
   getSingleCombos(combos) {
@@ -175,7 +179,7 @@ export class Player {
     }
 
     // check for the non-sequential full hand combos where order doesn't matter
-    findFullHandNonSequentialCombos(this.hand, fullHand);
+    buildNonSequentialCombos(this.hand, fullHand, combos);
 
     combos[COMBOS.FULL_HAND] = fullHand;
   }

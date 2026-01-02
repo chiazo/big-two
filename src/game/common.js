@@ -97,6 +97,12 @@ export const FULL_HAND_COMBO = {
 
 const isSequential = (a, b) => b - a === 1;
 
+const getMaxHand = (a, b) => {
+  return Math.max(a.hand.max().rank, b.hand.max().rank) === a.hand.max()
+    ? a
+    : b;
+};
+
 // Five cards of any suit in order
 const isStraight = (hand) => {
   const sequence = hand.rank().reduce(
@@ -174,7 +180,7 @@ export const findFullHandNonSequentialCombos = (hand, fullHand) => {
   const reverseHand = hand.cards.reverse();
   const { rankCount, suitCount } = fullHandCount(hand);
   const fourOfAKind = {
-    cards: [],
+    fours: [],
     type: FULL_HAND_TYPES.FOUR_OF_A_KIND,
   };
   const fullHouse = {
@@ -189,27 +195,39 @@ export const findFullHandNonSequentialCombos = (hand, fullHand) => {
   for (const rank in rankCount) {
     const count = rankCount[rank];
     if (count === fourCount) {
-      fourOfAKind.cards.push(
-        reverseHand.filter((c) => c.rank === rank).slice(0, fourCount)
+      fourOfAKind.fours.push(
+        new Hand(
+          reverseHand
+            .filter((c) => c.rank === parseInt(rank))
+            .slice(0, fourCount)
+        )
       );
     }
     if (count === tripleCount) {
       fullHouse.triples.push({
-        hand: reverseHand.filter((c) => c.rank === rank).slice(0, tripleCount),
+        hand: new Hand(
+          reverseHand
+            .filter((c) => c.rank === parseInt(rank))
+            .slice(0, tripleCount)
+        ),
       });
     }
     if (count === doubleCount) {
       fullHouse.doubles.push({
-        hand: reverseHand.filter((c) => c.rank === rank).slice(0, doubleCount),
+        hand: new Hand(
+          reverseHand
+            .filter((c) => c.rank === parseInt(rank))
+            .slice(0, doubleCount)
+        ),
       });
     }
   }
 
-  if (fourOfAKind.cards.length > 1) {
+  if (fourOfAKind.fours.length > 0) {
     fullHand.push(fourOfAKind);
   }
 
-  if (fullHouse.doubles.length > 1 && fullHouse.triples > 1) {
+  if (fullHouse.doubles.length > 0 && fullHouse.triples.length > 0) {
     fullHand.push(fullHouse);
   }
   for (const suit in suitCount) {
@@ -225,6 +243,32 @@ export const findFullHandNonSequentialCombos = (hand, fullHand) => {
       });
     }
   }
+};
+
+export const buildNonSequentialCombos = (hand, fullHand, existingCombos) => {
+  findFullHandNonSequentialCombos(hand, fullHand);
+  const maxSingle = Math.max(
+    ...existingCombos[COMBOS.SINGLE].map(({ rank }) => parseInt(rank))
+  );
+  fullHand.forEach((combo) => {
+    const { hand, fours, triples, doubles, type } = combo;
+    if (type == FULL_HAND_TYPES.FULL_HOUSE) {
+      const { hand: maxTriple } = triples.reduce(getMaxHand);
+      const { hand: maxDouble } = doubles.reduce(getMaxHand);
+      const fullHouse = maxTriple.join(maxDouble);
+      combo.hand = fullHouse;
+    }
+
+    if (type == FULL_HAND_TYPES.FOUR_OF_A_KIND) {
+      const { hand: maxFour } = fours.reduce(getMaxHand);
+      console.log(`fours`, fours);
+      console.log(`combo`, combo);
+      const fourOfAKind = maxFour.join(
+        new Hand(hand.cards.filter((c) => c.rank === maxSingle))
+      );
+      combo.hand = fourOfAKind;
+    }
+  });
 };
 
 export const RANKS = {

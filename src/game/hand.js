@@ -2,6 +2,10 @@ export class Hand {
   cards;
 
   constructor(cards) {
+    this.sort(cards);
+  }
+
+  sort(cards = this.cards) {
     this.cards = cards.sort((a, b) => {
       if (a.rank !== 2 && b.rank !== 2) {
         return a.rank - b.rank;
@@ -16,7 +20,7 @@ export class Hand {
   }
 
   max() {
-    return this.count() > 1
+    return this.count() > 0
       ? this.cards[this.cards.length - 1]
       : this.lastCard();
   }
@@ -37,6 +41,12 @@ export class Hand {
     if (this.cards.length === 0) {
       return this.cards[0];
     }
+  }
+
+  join(hand) {
+    this.cards = this.cards.concat(hand.cards);
+    this.sort();
+    return this;
   }
 
   logMove() {
