@@ -2,17 +2,19 @@ import { SUITS, RANKS } from "./contants.js";
 
 export class Card {
   suit;
+  symbol;
   rank;
   name;
   faceCard;
 
-  constructor(suit, rank) {
+  constructor(suit, symbol, rank) {
     const [validSuit, validRank] = this.validateCard(suit, rank);
 
     if (validSuit && validRank) {
       const faceCard = this.isFaceCard(rank);
       this.suit = suit;
       this.rank = rank;
+      this.symbol = symbol;
       this.faceCard = faceCard;
       this.name = this.getCardName(rank, faceCard);
     }
@@ -35,6 +37,10 @@ export class Card {
       rank >= RANKS.NUMERAL_CARDS.MIN.value &&
       rank <= RANKS.NUMERAL_CARDS.MAX.value
     );
+  }
+
+  toString() {
+    return `${this.symbol} ${this.name || this.rank}`;
   }
 
   getCardName(rank, isFaceCard) {

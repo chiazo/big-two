@@ -7,12 +7,17 @@ import { Hand } from "./hand.js";
 import { Player } from "./player.js";
 import { load } from "js-yaml";
 import { input, select } from "@inquirer/prompts";
+import { select as multi } from "inquirer-select-pro";
 
 const logMessage = (message) => {
   console.log(SEPARATOR + message + SEPARATOR);
 };
 
-const promptUser = async (entry) => {
+const logMove = (message) => {
+  console.log(` ---- ${message} ---- `);
+};
+
+const promptUserAtStart = async (entry) => {
   const userInputs = {};
   const regex = /\$\{placeholder\}/i;
   for (const idx in entry) {
@@ -46,6 +51,30 @@ const promptUser = async (entry) => {
     userInputs[variableName] = result;
   }
   return userInputs;
+};
+
+const promptUserDuringGame = async (player) => {
+  const selectedCards = await multi({
+    message: "What combo do you wish to play?",
+    multiple: true,
+    options: player.hand.cards.map((c) => {
+      return { name: c.toString(), value: c.toString() };
+    }),
+  });
+
+  const combo = player.hand.cards.filter((c) =>
+    selectedCards.includes(c.toString())
+  );
+  const { validCombo, lastComboPlayed, error } = player.playCombo(
+    new Hand(combo)
+  );
+  if (!validCombo) {
+    logMessage(
+      `${player.name} played an invalid combo (err: ${error}). Try again.`
+    );
+    await promptUserDuringGame(player);
+  }
+  return lastComboPlayed;
 };
 
 const handleUserInput = (response, regex, variableName, answer) => {
@@ -82,7 +111,7 @@ export class Game {
 
     for (const [_, entry] of Object.entries(this.importScript())) {
       if (typeof entry !== "string") {
-        userInputs = await promptUser(entry);
+        userInputs = await promptUserAtStart(entry);
       }
     }
 
@@ -90,11 +119,17 @@ export class Game {
     const players = userInputs["playerNames"];
 
     // ensure the expected players matches
-    if (parseInt(playerCount) !== MAX_PLAYERS - players.length) {
-      logMessage(
+    if (
+      parseInt(playerCount) !== players.length ||
+      players.length > MAX_PLAYERS
+    ) {
+      this.restart(
         "The number of players doesn't match the number of names. Try again."
       );
-      this.initialize();
+    } else if (players.filter((p) => p.length < 1).length > 0) {
+      this.restart("Empty names are not allowed. Try again.");
+    } else if (playerCount > 1) {
+      logMessage("Multi-player is not currently supported.");
     } else {
       this.start(players);
     }
@@ -104,19 +139,41 @@ export class Game {
     // set up the live players
     players.forEach((p) => {
       const player = new Player(this.#getHand(), p);
-      console.log(this.addPlayer(player));
+      this.addPlayer(player);
     });
     // set up the computer players
     const computerPlayers = MAX_PLAYERS - players.length;
     for (let i = 0; i < computerPlayers; i++) {
-      console.log(this.addPlayer());
+      this.addPlayer();
     }
+    this.startRound();
+  }
+
+  restart(message) {
+    if (message.length > 0) {
+      logMessage(message);
+    }
+    this.initialize();
   }
 
   addPlayer(player = new Player(this.#getHand())) {
     if (this.players.length < 5) {
       this.players.push(player);
+      player.getHand();
       return player;
+    }
+  }
+
+  async startRound() {
+    let lastComboPlayed;
+    for (const player of this.players) {
+      logMove(`${player.name} is playing their turn!`);
+      if (!player.isComputer) {
+        lastComboPlayed = await promptUserDuringGame(player);
+      } else {
+        player.autoPlay(lastComboPlayed);
+      }
+      logMove(`They played a ${lastComboPlayed.type}!`);
     }
   }
 
@@ -135,8 +192,4 @@ export class Game {
 }
 
 const game = new Game();
-// for (let i = 1; i < 5; i++) {
-//   game.addPlayer().getHand();
-// }
-
 game.initialize();

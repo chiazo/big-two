@@ -20,17 +20,17 @@ export class Deck {
 
   createCards() {
     const cards = [];
-    for (const suit of Object.keys(SUITS)) {
+    for (const [suit, { symbol }] of Object.entries(SUITS)) {
       for (
         let i = RANKS.NUMERAL_CARDS.MIN.value;
         i <= RANKS.NUMERAL_CARDS.MAX.value;
         i++
       ) {
-        cards.push(new Card(suit, i));
+        cards.push(new Card(suit, symbol, i));
       }
 
       for (const faceCardRank of Object.values(RANKS.FACE_CARDS)) {
-        cards.push(new Card(suit, faceCardRank));
+        cards.push(new Card(suit, symbol, faceCardRank));
       }
     }
     return cards;
