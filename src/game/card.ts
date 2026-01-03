@@ -1,13 +1,13 @@
-import { SUITS, RANKS } from "./common.js";
+import { CardSuit, RANKS } from "./common.ts";
 
 export class Card {
-  suit;
-  symbol;
-  rank;
-  name;
-  faceCard;
+  suit: string;
+  symbol: string;
+  rank: number;
+  name: string;
+  faceCard: boolean;
 
-  constructor(suit, symbol, rank) {
+  constructor(suit: string, symbol: string, rank: number) {
     const [validSuit, validRank] = this.validateCard(suit, rank);
 
     if (validSuit && validRank) {
@@ -17,6 +17,8 @@ export class Card {
       this.symbol = symbol;
       this.faceCard = faceCard;
       this.name = this.getCardName(rank, faceCard);
+    } else {
+      throw new Error(`${rank} of ${symbol} is invalid`)
     }
   }
 
@@ -25,7 +27,7 @@ export class Card {
   }
 
   validateSuit(suit) {
-    return Object.keys(SUITS).indexOf(suit) >= 0;
+    return Object.keys(CardSuit).indexOf(suit) >= 0;
   }
 
   validateRank(rank) {
@@ -44,10 +46,11 @@ export class Card {
   }
 
   getCardName(rank, isFaceCard) {
+    const faceCardName = Object.keys(RANKS.FACE_CARDS).find(
+      (c) => RANKS.FACE_CARDS[c] === rank
+    );
     if (isFaceCard) {
-      return Object.keys(RANKS.FACE_CARDS).find(
-        (c) => RANKS.FACE_CARDS[c] === rank
-      );
+      return faceCardName || "";
     }
 
     return rank === RANKS.NUMERAL_CARDS.MIN.value

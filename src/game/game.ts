@@ -1,16 +1,16 @@
+import { input, select } from "@inquirer/prompts";
 import fs from "fs";
+import { select as multi } from "inquirer-select-pro";
+import { load } from "js-yaml";
 import { dirname, resolve } from "path";
 import { fileURLToPath } from "url";
-import { MAX_PLAYERS, logMessage, RANK_COUNT } from "./common.js";
+import { logMessage, MAX_PLAYERS, RANK_COUNT, SKIP_ROUND } from "./common.ts";
 import { Deck } from "./deck.js";
 import { Hand } from "./hand.js";
+import { Card } from "./card.ts";
 import { Player } from "./player.js";
-import { load } from "js-yaml";
-import { input, select } from "@inquirer/prompts";
-import { select as multi } from "inquirer-select-pro";
 
 /* HELPER METHODS */
-
 const logMove = (message) => {
   console.log(` ---- ${message} ---- `);
 };
@@ -24,7 +24,7 @@ const promptUserAtStart = async (entry) => {
     const choices = obj["Choices"];
     const response = obj["Response"];
     const variableName = obj["Variable"];
-    let result = "";
+    let result: string[] = [];
 
     if (prompt) {
       if (choices) {
@@ -51,25 +51,52 @@ const promptUserAtStart = async (entry) => {
   return userInputs;
 };
 
-const promptUserDuringGame = async (player) => {
-  const selectedCards = await multi({
-    message: "What combo do you wish to play?",
-    multiple: true,
-    options: player.hand.cards.map((c) => {
+const promptUserDuringGame = async (player: Player, lastHandPlayed: Hand | undefined) => {
+  if (player.isComputer) {
+    return;
+  }
+
+  const options = [{ name: SKIP_ROUND, value: SKIP_ROUND }].concat(
+    player.hand.cards.map((c) => {
       return { name: c.toString(), value: c.toString() };
-    }),
+    })
+  );
+
+  const selectedCards = await multi({
+    message: "What would you like to do or play?",
+    multiple: true,
+    options: options,
   });
+
+  if (selectedCards.find((s) => s === SKIP_ROUND)) {
+    player.skipRound();
+    return;
+  }
 
   const combo = player.hand.cards.filter((c) =>
     selectedCards.includes(c.toString())
   );
 
-  const { validCombo, comboPlayed, error } = player.playCombo(new Hand(combo));
+  const { validCombo, comboPlayed, error } = player.playCombo(new Hand(combo), lastHandPlayed);
   if (!validCombo) {
     logMessage(
       `${player.name} played an invalid combo (err: ${error}). Try again.`
     );
-    await promptUserDuringGame(player);
+    await promptUserDuringGame(player, lastHandPlayed);
+  }
+  if (comboPlayed && lastHandPlayed) {
+    if (comboPlayed.cards.length !== lastHandPlayed.cards.length) {
+      logMessage(
+        `${player.name} played cards that don't match the number of cards in the last hand played. The hand to beat is ${lastHandPlayed.toString()} Try again.`
+      );
+      await promptUserDuringGame(player, lastHandPlayed);
+    }
+    if (!comboPlayed.beats(lastHandPlayed)) {
+      logMessage(
+        `${player.name} played a combo that doesn't beat the last hand played. Try again.`
+      );
+    }
+    await promptUserDuringGame(player, lastHandPlayed);
   }
   return comboPlayed;
 };
@@ -152,7 +179,11 @@ export class Game {
     this.players.forEach((p) => {
       p.calculateCombos();
     });
-    return this.players.some((p) => p.hand.cards.length === 0);
+    const winners = this.players.filter((p) => p.hand.cards.length === 0);
+    winners.map((w) => {
+      logMessage(`The game has ended! ${w} is the winner!`);
+    })
+    return winners.length > 0;
   }
 
   restart(message) {
@@ -169,35 +200,71 @@ export class Game {
     }
   }
 
+  playerOrder({ lastPlayer }): Player[] {
+    if (lastPlayer === undefined || lastPlayer.length === 0) {
+      return this.players;
+    }
+    const firstPlayer: Player[] = this.players.filter((p) => p.name === lastPlayer)
+    return firstPlayer.concat(this.players.filter((p) => p.name !== lastPlayer))
+  }
+
   async startRound() {
-    let lastComboPlayed;
-    let lastPlayer = "";
+    const stats: { lastPlayer: string, lastHandPlayed: Hand | undefined } = {
+      lastPlayer: "",
+      lastHandPlayed: undefined,
+    };
+
     const [winner] = this.players
       .filter((p) => p.hand.cards.length === 0)
       .map((p) => p.name);
     while (!this.isGameOver()) {
-      for (const player of this.players) {
+      for (const player of this.playerOrder(stats)) {
+        this.updateStats(stats, player)
+        if (player.skip) {
+          continue;
+        }
         logMove(
-          `${player.name} is playing their turn${
-            lastPlayer.length > 0 ? ` after ${lastPlayer}` : ``
+          `${player.name} is playing their turn${stats.lastPlayer.length > 0 ? ` after ${stats.lastPlayer}` : ``
           }!`
         );
         if (!player.isComputer) {
-          lastComboPlayed = await promptUserDuringGame(player);
+          // display available combos to user
+          player.logCombos(stats.lastHandPlayed)
+          stats.lastHandPlayed = await promptUserDuringGame(player, stats.lastHandPlayed);
         } else {
-          let { comboPlayed } = player.autoPlay(lastComboPlayed);
-          lastComboPlayed = comboPlayed;
+          const computerResult = player.autoPlay(stats.lastHandPlayed);
+          // i.e. the computer couldn't beat the last hand
+          if (!computerResult) {
+            player.skipRound();
+            continue;
+          }
+          stats.lastHandPlayed = computerResult.comboPlayed;
+          if (computerResult.comboPlayed) {
+            computerResult.comboPlayed.toString()
+          }
         }
-
-        lastPlayer = player.name;
+        stats.lastPlayer = player.name;
       }
     }
-    logMessage(`The game has ended! ${winner} is the winner!`);
+  }
+
+  updateStats(stats, player: Player) {
+    if (stats.lastPlayer == player.name) {
+      const winner = player.name
+      stats.lastPlayer = "";
+      stats.lastHandPlayed = undefined;
+      this.resetRound(winner);
+    }
+  }
+
+  resetRound(winner = "") {
+    logMessage(`The round is over, ${winner} won! Time for the next round...`)
+    this.players.forEach((p) => p.resetRound());
   }
 
   #getHand() {
     let i = 0;
-    let cards = [];
+    let cards: Card[] = [];
 
     while (i < RANK_COUNT && this.deck.cards.length > 0) {
       let randCard = Math.floor(Math.random() * this.deck.cards.length);
