@@ -9,6 +9,7 @@ import { Deck } from "./deck.js";
 import { Hand } from "./hand.js";
 import { Card } from "./card.ts";
 import { Player } from "./player.js";
+import { Table } from "console-table-printer"
 
 /* HELPER METHODS */
 const logMove = (message) => {
@@ -56,9 +57,10 @@ const promptUserDuringGame = async (player: Player, lastHandPlayed: Hand | undef
     return;
   }
 
+  const cardsToDisplay = lastHandPlayed ? player.eligibleMoves(lastHandPlayed) : player.hand.cards.map((c) => c.toString())
   const options = [{ name: SKIP_ROUND, value: SKIP_ROUND }].concat(
-    player.hand.cards.map((c) => {
-      return { name: c.toString(), value: c.toString() };
+    cardsToDisplay.map((c) => {
+      return { name: c, value: c };
     })
   );
 
@@ -78,27 +80,29 @@ const promptUserDuringGame = async (player: Player, lastHandPlayed: Hand | undef
   );
 
   const { validCombo, comboPlayed, error } = player.playCombo(new Hand(combo), lastHandPlayed);
-  if (!validCombo) {
+  if (!validCombo || error.length > 0) {
     logMessage(
       `${player.name} played an invalid combo (err: ${error}). Try again.`
     );
     await promptUserDuringGame(player, lastHandPlayed);
-  }
-  if (comboPlayed && lastHandPlayed) {
-    if (comboPlayed.cards.length !== lastHandPlayed.cards.length) {
-      logMessage(
-        `${player.name} played cards that don't match the number of cards in the last hand played. The hand to beat is ${lastHandPlayed.toString()} Try again.`
-      );
-      await promptUserDuringGame(player, lastHandPlayed);
+  } else {
+    if (comboPlayed && lastHandPlayed) {
+      if (comboPlayed.cards.length !== lastHandPlayed.cards.length) {
+        logMessage(
+          `${player.name} played cards that don't match the number of cards in the last hand played. The hand to beat is ${lastHandPlayed.toString()} Try again.`
+        );
+        await promptUserDuringGame(player, lastHandPlayed);
+      }
+      if (!comboPlayed.beats(lastHandPlayed)) {
+        logMessage(
+          `${player.name} played a combo that doesn't beat the last hand played. Try again.`
+        );
+        await promptUserDuringGame(player, lastHandPlayed);
+      }
     }
-    if (!comboPlayed.beats(lastHandPlayed)) {
-      logMessage(
-        `${player.name} played a combo that doesn't beat the last hand played. Try again.`
-      );
-    }
-    await promptUserDuringGame(player, lastHandPlayed);
+    player.removeCards(comboPlayed);
+    return comboPlayed;
   }
-  return comboPlayed;
 };
 
 const handleUserInput = (response, regex, variableName, answer) => {
@@ -179,11 +183,20 @@ export class Game {
     this.players.forEach((p) => {
       p.calculateCombos();
     });
-    const winners = this.players.filter((p) => p.hand.cards.length === 0);
+    const winners = this.players.filter((p) => p.hand.cards.length === 0).map(p => p.name);
     winners.map((w) => {
       logMessage(`The game has ended! ${w} is the winner!`);
     })
+    this.logGameState();
     return winners.length > 0;
+  }
+
+  logGameState() {
+    if (this.players.map(p => p.hand.cards.length).reduce((a, b) => Math.min(a, b)) > 5) {
+      return;
+    }
+    const table = new Table({ columns: [{ name: "player" }, { name: "cards left", color: "red" }], defaultColumnOptions: { alignment: "center" }, rows: this.players.map((p) => { return { player: p.name, cards_left: p.hand.cards.length } }) });
+    table.printTable()
   }
 
   restart(message) {
@@ -223,10 +236,7 @@ export class Game {
         if (player.skip) {
           continue;
         }
-        logMove(
-          `${player.name} is playing their turn${stats.lastPlayer.length > 0 ? ` after ${stats.lastPlayer}` : ``
-          }!`
-        );
+
         if (!player.isComputer) {
           // display available combos to user
           player.logCombos(stats.lastHandPlayed)
@@ -239,10 +249,16 @@ export class Game {
             continue;
           }
           stats.lastHandPlayed = computerResult.comboPlayed;
+          player.removeCards(computerResult.comboPlayed);
           if (computerResult.comboPlayed) {
             computerResult.comboPlayed.toString()
           }
         }
+        logMove(
+          `${player.name} is taking their turn${stats.lastPlayer.length > 0 ? ` after ${stats.lastPlayer}` : ``
+          }! They played a ${stats.lastHandPlayed?.type}.`
+        );
+        stats.lastHandPlayed?.logMove()
         stats.lastPlayer = player.name;
       }
     }

@@ -8,6 +8,7 @@ import {
   sortByRank,
 } from "./common.ts";
 import { Card } from "./card.js"
+import { printTable, Table } from "console-table-printer";
 
 export class Hand {
   cards: Card[];
@@ -34,7 +35,7 @@ export class Hand {
   max(): Card {
     this.sort();
     if (this.type === FullHandCombo.FULL_HOUSE.toString()) {
-      const counts = findHandCount(calculateHandCount(this), 3);
+      const counts = calculateHandCount(this);
       const triple = findHandCount(counts, 3);
       const max = this.cards.reverse().find((c) => c.rank === parseInt(triple));
       if (max == undefined) {
@@ -73,19 +74,17 @@ export class Hand {
   }
 
   beats(hand) {
-    const maxVal = getMaxHand(hand, this);
-    return this === maxVal;
+    const maxVal: Hand = getMaxHand(hand, this);
+    return this.toString() === maxVal.toString();
+  }
+
+  has(card: Card) {
+    return this.cards.map((c) => c.toString()).includes(card.toString())
   }
 
   logMove() {
-    console.table(this.cards, ["rank", "suit", "symbol"])
-    // console.table(
-    //   this.cards.reduce((prev, { rank, ...x }) => {
-    //     prev[rank] = x;
-    //     return prev;
-    //   }, {}),
-    //   ["suit", "symbol"]
-    // );
+    const table = new Table({ columns: [{ name: "rank", color: "blue" }, { name: "suit", color: "green" }, { name: "symbol", color: "yellow" }], defaultColumnOptions: { alignment: "center" }, rows: this.cards.map((c) => { return { rank: c.rank, suit: c.suit, symbol: c.symbol } }) });
+    table.printTable()
   }
 
   toString() {

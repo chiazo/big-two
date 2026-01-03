@@ -11,13 +11,10 @@ import {
   MAX_PLAYABLE_CARDS,
   SEPARATOR,
   sortByRank,
+  sortHands,
 } from "./common.ts";
 import { Hand } from "./hand.js";
-
-// TODO: associate ranking with
-// TODO: different 5 hand plays so I can associate best and worst option
-// TODO: ensure computer plays best hand available
-
+import { Table } from "console-table-printer";
 export class SubCombo {
   rank: string;
   hand: Hand;
@@ -94,7 +91,6 @@ export class Player {
       };
     }
 
-    this.removeCards(combo);
     return {
       validCombo: true,
       comboPlayed: combo,
@@ -131,12 +127,11 @@ export class Player {
 
   playBestHand(lastHandPlayed: Hand | undefined) {
     const isRoundLeader = lastHandPlayed == undefined;
-    // const minCardsNeeded = isRoundLeader ? 1 : lastHandPlayed.cards.length;
-    // let bestHandOverall;
 
-    // TODO: fall back to best hand overall if round leader
-    const typeNeeded = isRoundLeader ? COMBOS.SINGLE : lastHandPlayed.type;
-    const bestHandForRound = this.bestHand(typeNeeded);
+    const bestCombo = Object.keys(this.combos).reverse().find(k => this.combos[k].length > 0)
+    const bestComboValues = bestCombo ? this.combos[bestCombo] : []
+    const bestHandOverall = bestComboValues.sort((a: SubCombo, b: SubCombo) => sortHands(a.hand, b.hand)).pop()?.hand
+    const bestHandForRound = isRoundLeader ? bestHandOverall : this.bestHand(lastHandPlayed.type);
 
     // skip if you don't have a hand for this round
     if (!bestHandForRound) {
@@ -151,9 +146,7 @@ export class Player {
     }
 
     const result = this.playCombo(bestHandForRound, lastHandPlayed);
-    if (result.validCombo && result.comboPlayed) {
-      bestHandForRound.logMove();
-    } else {
+    if (!result.validCombo || !result.comboPlayed) {
       logMessage(`Uh oh! ${this.name} played an invalid combo`);
     }
     return result;
@@ -176,22 +169,32 @@ export class Player {
     return new Hand(cards);
   }
 
+  eligibleMoves(lastComboPlayed: Hand) {
+    const keys = Object.keys(this.combos).filter((k) => lastComboPlayed.type == k)
+    return keys.reduce((prev, curr) => prev.concat(this.combos[curr].map((cl) => cl.hand.cards.map(c => c.toString()))), []).flat()
+  }
+
   logCombos(lastComboPlayed: Hand | undefined) {
-    console.log(` -------- The combos you have available are: -------- `);
+    console.log(`\n ---- The combos you have available are: ---- `);
     let keys = Object.keys(this.combos)
     if (lastComboPlayed) {
       keys = keys.filter((k) => lastComboPlayed.type == k)
     }
-    for (const type of keys) {
-      const values = this.combos[type];
-      console.log(
-        `${type}:`,
-        values.map(
+
+    const rows = keys.filter(k => this.combos[k].length > 0).map(k => {
+      return {
+        combo: [... new Set(this.combos[k].map(s => s.type))].pop(), hands: this.combos[k].map(
           (v) =>
             v.rank ||
-            (v.hand !== undefined ? v.hand.toString() + ` — ${v.type}` : v.type)
+            v.hand.toString()
         )
-      );
+      }
+    });
+    const table = new Table({ columns: [{ name: "combo", color: "yellow" }, { name: "hands", color: "green" }], defaultColumnOptions: { alignment: "center" }, rows: rows });
+    if (rows.length > 0) {
+      table.printTable()
+    } else {
+      console.log("Dang, you don't have any eligible moves for this round!")
     }
     console.log(SEPARATOR);
   }

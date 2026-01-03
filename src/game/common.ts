@@ -59,9 +59,11 @@ export class CardCombo {
     return h.cards.length === 3 && [...new Set(h.rank())].length == 1;
   });
   static readonly FULL_HAND = new CardCombo(COMBOS.FULL_HAND, 5, (h) => {
-    const [[type]] = Object.entries(FullHandCombo).filter(([, f]) => {
-      return f.isValid(h);
+    const [key] = Object.keys(FullHandCombo).filter((k) => {
+      return FullHandCombo[k].isValid(h);
     });
+
+    const type = FullHandCombo[key].key;
     h.type = type;
     return h.cards.length === 5 && type !== null;
   });
@@ -143,36 +145,36 @@ export const RANKS = {
 // HELPER METHODS
 const isSequential = (a: number, b: number) => b - a === 1;
 
-export const getMaxSuit = (a: string, b: string) => {
-  const aRanking = CardSuit[a].ranking;
-  const bRanking = CardSuit[b].ranking;
+export const getMaxSuit = (a: Card, b: Card): Card => {
+  const aRanking = CardSuit[a.suit].ranking;
+  const bRanking = CardSuit[b.suit].ranking;
   const maxRanking = Math.max(aRanking, bRanking);
   return maxRanking === aRanking ? a : b;
 };
 
 export const sortBySuit = (a: Card, b: Card) => {
-  const maxSuit = getMaxSuit(a.suit, b.suit);
-  return a.suit === maxSuit ? 1 : -1;
+  const maxCard = getMaxSuit(a, b);
+  return a.suit === maxCard.suit ? 1 : -1;
 };
 
-export const getMaxRank = (a, b) => {
-  if (a !== 2 && b !== 2) {
-    return Math.max(a, b);
+export const getMaxRank = (a: Card, b: Card): Card => {
+  if (a.rank !== 2 && b.rank !== 2) {
+    return Math.max(a.rank, b.rank) === a.rank ? a : b;
   }
   // ensure 2 is highest ranked
-  return a == 2 ? a : b;
+  return a.rank == 2 ? a : b;
 };
 
 export const sortByRank = (a: Card, b: Card) => {
-  const maxRank = getMaxRank(a.rank, b.rank);
-  return a.rank == maxRank ? 1 : -1;
+  const maxCard = getMaxRank(a, b);
+  return a.rank == maxCard.rank ? 1 : -1;
 };
 
-export const getMaxCard = (a: Card, b: Card) => {
+export const getMaxCard = (a: Card, b: Card): Card => {
   if (a.rank === b.rank) {
-    return getMaxSuit(a.suit, b.suit);
+    return getMaxSuit(a, b);
   }
-  return getMaxRank(a.rank, b.rank);
+  return getMaxRank(a, b);
 };
 
 export const sortCards = (a: Card, b: Card) => {
@@ -182,26 +184,37 @@ export const sortCards = (a: Card, b: Card) => {
   return sortByRank(a, b);
 };
 
-export const getMaxHand = (a: Hand, b: Hand) => {
+export const sortHands = (a: Hand, b: Hand): Hand => {
+  const maxCard = a.cards.concat(b.cards).sort(sortCards).pop()
+  if (maxCard === undefined) {
+    throw new Error("max card is missing when it shouldn't be")
+  }
+  return a.has(maxCard) ? a : b;
+}
+
+export const getMaxHand = (a: Hand, b: Hand): Hand => {
   if (a.cards.length !== b.cards.length) {
     throw new Error("comparison between mismatched hands")
+  }
+  if (a.cards.length === 5) {
+    return getMaxFullHand(a, b);
   }
   const aMax = a.max();
   const bMax = b.max();
   const maxCard = getMaxCard(aMax, bMax);
-  return maxCard === aMax.rank ? a : b;
+  return maxCard.toString() === a.max().toString() ? a : b;
 };
 
-const getMaxFullHand = (a, b) => {
+const getMaxFullHand = (a: Hand, b: Hand): Hand => {
   const aType = a.type;
   const aCombo = FullHandCombo[aType];
   const bType = b.type;
   const bCombo = FullHandCombo[bType];
 
-  if (aCombo.rating === bCombo.rating) {
-    return getMaxHand(a, b);
+  if (aCombo.ranking === bCombo.ranking) {
+    return getMaxCard(a.max(), b.max()).toString() === a.max().toString() ? a : b;
   }
-  return aCombo.rating - bCombo.rating;
+  return aCombo.ranking > bCombo.ranking ? a : b;
 };
 
 // Five cards of any suit in order
@@ -290,7 +303,8 @@ export const findFullHandNonSequentialCombos = (hand: Hand) => {
         new Hand(
           reverseHand
             .filter((c) => c.rank === parseInt(rank))
-            .slice(0, fourCount)
+            .slice(0, fourCount),
+          FULL_HAND_TYPES.FOUR_OF_A_KIND
         ), FULL_HAND_TYPES.FOUR_OF_A_KIND
       ));
     }
@@ -304,7 +318,7 @@ export const findFullHandNonSequentialCombos = (hand: Hand) => {
         new Hand(
           reverseHand
             .filter((c) => c.suit === suit)
-            .slice(0, MAX_PLAYABLE_CARDS)
+            .slice(0, MAX_PLAYABLE_CARDS), FULL_HAND_TYPES.FLUSH
         ),
         FULL_HAND_TYPES.FLUSH,
       ));
