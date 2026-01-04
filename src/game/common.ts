@@ -159,11 +159,17 @@ export const sortBySuit = (a: Card, b: Card) => {
 };
 
 export const getMaxRank = (a: Card, b: Card): Card => {
-  if (a.rank !== 2 && b.rank !== 2) {
+  if (a.rank > 2 && b.rank > 2) {
     return Math.max(a.rank, b.rank) === a.rank ? a : b;
   }
-  // ensure 2 is highest ranked
-  return a.rank == 2 ? a : b;
+  // ensure 2 and Ace are ranked highest
+  if (a.rank === 2) {
+    return a;
+  }
+  if (b.rank === 2) {
+    return b;
+  }
+  return a.rank > 2 ? b : a;
 };
 
 export const sortByRank = (a: Card, b: Card) => {
