@@ -13,50 +13,74 @@ import { Deck } from "../game/deck";
 import { Hand } from "../game/hand";
 
 describe("hand.test.ts", () => {
-    const deck = new Deck();
     describe("use cases", () => {
         describe("single", () => {
-            verifyHand(COMBOS.SINGLE);
+            it("verifies random hand", () => {
+                verifyHand(COMBOS.SINGLE);
+            })
             it("beats other single", () => {
-                const ace = getSpecificHandAndRank(deck, CardCombo.SINGLE, 1)
-                const king = getSpecificHandAndRank(deck, CardCombo.SINGLE, 13)
-                const two = getSpecificHandAndRank(deck, CardCombo.SINGLE, 2)
-                assert(ace && king && two && ace.beats(king) && two.beats(ace) && two.beats(king))
+                verifyHandBeatsAnother(CardCombo.SINGLE)
             })
             it("two of spades beats another two", () => {
-                const twoOfSpades = getSpecificHandAndRank(deck, CardCombo.SINGLE, 2, CardSuit.SPADES)
-                const twoOfHearts = getSpecificHandAndRank(deck, CardCombo.SINGLE, 2, CardSuit.HEARTS)
-                assert(twoOfSpades && twoOfHearts && twoOfSpades.beats(twoOfHearts))
+                verifyTwoWins(CardCombo.SINGLE)
             })
         });
         describe("double", () => {
-            verifyHand(COMBOS.PAIR);
+            it("verifies random hand", () => {
+                verifyHand(COMBOS.PAIR);
+            })
+            it("beats other pair", () => {
+                verifyHandBeatsAnother(CardCombo.PAIR)
+            })
+            it("pair with two of spades beats another pair of twos", () => {
+                verifyTwoWins(CardCombo.PAIR)
+            })
         });
         describe("triple", () => {
-            verifyHand(COMBOS.TRIPLE);
+            it("verifies random hand", () => {
+                verifyHand(COMBOS.TRIPLE);
+            })
+            it("beats other triple", () => {
+                verifyHandBeatsAnother(CardCombo.TRIPLE)
+            })
+            it("triple with two of spades beats another triple of twos", () => {
+                verifyTwoWins(CardCombo.TRIPLE)
+            })
         });
         describe("straight", () => {
-            verifyHand(COMBOS.FULL_HAND, FULL_HAND_TYPES.STRAIGHT);
+            it("verifies random hand", () => {
+                verifyHand(COMBOS.FULL_HAND, FULL_HAND_TYPES.STRAIGHT);
+            })
         });
         describe("flush", () => {
-            verifyHand(COMBOS.FULL_HAND, FULL_HAND_TYPES.FLUSH);
+            it("verifies random hand", () => {
+                verifyHand(COMBOS.FULL_HAND, FULL_HAND_TYPES.FLUSH);
+            })
         });
         describe("full house", () => {
-            verifyHand(
-                COMBOS.FULL_HAND,
-                FULL_HAND_TYPES.FULL_HOUSE,
-                (c, h) => !isEmpty(findHandCount(calculateHandCount(h), 3))
-            );
+            it("verifies random hand", () => {
+                verifyHand(
+                    COMBOS.FULL_HAND,
+                    FULL_HAND_TYPES.FULL_HOUSE,
+                    (c, h) => !isEmpty(findHandCount(calculateHandCount(h), 3))
+                );
+            })
+
         });
         describe("four of a kind", () => {
-            verifyHand(
-                COMBOS.FULL_HAND,
-                FULL_HAND_TYPES.FOUR_OF_A_KIND,
-                (c, h) => !isEmpty(findHandCount(calculateHandCount(h), 4))
-            );
+            it("verifies random hand", () => {
+                verifyHand(
+                    COMBOS.FULL_HAND,
+                    FULL_HAND_TYPES.FOUR_OF_A_KIND,
+                    (c, h) => !isEmpty(findHandCount(calculateHandCount(h), 4))
+                );
+            })
+
         });
         describe("straight flush", () => {
-            verifyHand(COMBOS.FULL_HAND, FULL_HAND_TYPES.STRAIGHT_FLUSH);
+            it("verifies random hand", () => {
+                verifyHand(COMBOS.FULL_HAND, FULL_HAND_TYPES.STRAIGHT_FLUSH);
+            })
         });
     });
 
@@ -87,3 +111,18 @@ describe("hand.test.ts", () => {
         });
     });
 });
+
+const verifyHandBeatsAnother = (c: CardCombo) => {
+    const deck = new Deck();
+    const ace = getSpecificHandAndRank(deck, c, 1)
+    const king = getSpecificHandAndRank(deck, c, 13)
+    const two = getSpecificHandAndRank(deck, c, 2)
+    assert(ace && king && two && ace.beats(king) && two.beats(ace) && two.beats(king))
+}
+
+const verifyTwoWins = (c: CardCombo) => {
+    const deck = new Deck();
+    const twoOfSpades = getSpecificHandAndRank(deck, c, 2, CardSuit.SPADES)
+    const twoOfHearts = getSpecificHandAndRank(deck, c, 2, CardSuit.HEARTS)
+    assert(twoOfSpades && twoOfHearts && twoOfSpades.beats(twoOfHearts))
+}
