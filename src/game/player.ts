@@ -5,7 +5,6 @@ import {
   buildNonSequentialCombos,
   calculateHandCount,
   CardCombo,
-  COMBOS,
   FullHandCombo,
   getMaxHand,
   getMaxRank,
@@ -15,9 +14,11 @@ import {
   sortByRank,
   sortCards,
   sortHands,
-  THREE_OF_DIAMONDS
 } from "./common.ts";
 import { Hand } from "./hand.js";
+import { COMBOS } from "./constants.ts"
+import { Deck } from "./deck.ts";
+
 export class SubCombo {
   rank: string;
   hand: Hand;
@@ -99,7 +100,7 @@ export class Player {
     }
 
     if (
-      round === 0 && !lastHandPlayed && !combo.has(THREE_OF_DIAMONDS)
+      round === 0 && !lastHandPlayed && !combo.has(Deck.LOWEST_CARD)
     ) {
       return {
         validCombo: false,
@@ -147,9 +148,9 @@ export class Player {
 
     const isRoundLeader = lastHandPlayed == undefined;
     if (isRoundLeader) {
-      const mustPlayThreeOfDiamonds = isRoundLeader && round === 0 && this.has(THREE_OF_DIAMONDS)
+      const mustPlayThreeOfDiamonds = isRoundLeader && round === 0 && this.has(Deck.LOWEST_CARD)
       if (mustPlayThreeOfDiamonds) {
-        bestHandForRound = Object.values(this.combos).flat().find((s) => s.hand.has(THREE_OF_DIAMONDS))?.hand
+        bestHandForRound = Object.values(this.combos).flat().find((s) => s.hand.has(Deck.LOWEST_CARD))?.hand
       } else { // otherwise play the best overall hand
         const bestCombo = Object.keys(this.combos).reverse().find(k => { const subcombos = this.combos[k as keyof typeof COMBOS]; return subcombos && subcombos.length > 0 })
         const bestComboValues: SubCombo[] = this.combos[bestCombo as keyof typeof COMBOS] || []

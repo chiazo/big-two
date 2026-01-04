@@ -6,13 +6,7 @@ import { load } from "js-yaml";
 import { dirname, resolve } from "path";
 import { isEmpty } from "underscore";
 import { fileURLToPath } from "url";
-import {
-  DECK_SIZE,
-  logMessage,
-  MAX_PLAYERS,
-  SKIP_ROUND,
-  THREE_OF_DIAMONDS,
-} from "./common.ts";
+import { DECK_SIZE, logMessage, MAX_PLAYERS, SKIP_ROUND } from "./common.ts";
 import { Deck } from "./deck.js";
 import { Hand } from "./hand.js";
 import { Player } from "./player.js";
@@ -262,7 +256,7 @@ export class Game {
     if (lastPlayer === undefined || lastPlayer.length === 0) {
       // the player with 3 of diamonds starts the game
       const startingOrder: Player[] = this.players.filter((p) =>
-        p.has(THREE_OF_DIAMONDS)
+        p.has(Deck.LOWEST_CARD)
       );
       const firstPlayer = startingOrder.slice(0, 1).pop();
       return startingOrder.concat(

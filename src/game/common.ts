@@ -2,6 +2,7 @@ import { Card } from "./card.js";
 import { Hand } from "./hand.js";
 import { Deck } from "./deck.js";
 import { SubCombo } from "./player.js";
+import { COMBOS, FULL_HAND_TYPES, CardSuit } from "./constants.js";
 import { shuffle, isEmpty } from 'underscore';
 
 // CONSTANTS
@@ -12,40 +13,6 @@ export const RANK_COUNT = 13;
 export const SKIP_ROUND = "SKIP ROUND";
 export const SEPARATOR =
   "\n=============================================================================\n";
-
-// ENUMS
-export enum COMBOS {
-  SINGLE = "SINGLE",
-  PAIR = "PAIR",
-  TRIPLE = "TRIPLE",
-  FULL_HAND = "FULL_HAND",
-}
-
-export enum FULL_HAND_TYPES {
-  STRAIGHT = "STRAIGHT",
-  FLUSH = "FLUSH",
-  FULL_HOUSE = "FULL_HOUSE",
-  FOUR_OF_A_KIND = "FOUR_OF_A_KIND",
-  STRAIGHT_FLUSH = "STRAIGHT_FLUSH",
-}
-
-// COMPLEX ENUM CLASSES
-export class CardSuit {
-  static readonly DIAMONDS = new CardSuit("DIAMONDS", "♦", 1);
-  static readonly CLUBS = new CardSuit("CLUBS", "♣", 2);
-  static readonly HEARTS = new CardSuit("HEARTS", "♥", 3);
-  static readonly SPADES = new CardSuit("SPADES", "♠", 4);
-
-  private constructor(
-    private readonly key: string,
-    public readonly symbol: string,
-    public readonly ranking: number
-  ) { }
-
-  toString(): string {
-    return this.key;
-  }
-}
 
 export class CardCombo {
   static readonly SINGLE = new CardCombo(COMBOS.SINGLE, 1, (h) => {
@@ -123,27 +90,6 @@ export class FullHandCombo {
     return this.key;
   }
 }
-
-export const RANKS = {
-  NUMERAL_CARDS: {
-    MIN: {
-      value: 1,
-      name: "ACE",
-    },
-    MAX: {
-      value: 10,
-      name: "",
-    },
-  },
-  FACE_CARDS: {
-    JACK: 11,
-    QUEEN: 12,
-    KING: 13,
-  },
-};
-
-export const THREE_OF_DIAMONDS = new Card(CardSuit.DIAMONDS.toString(), CardSuit.DIAMONDS.symbol, 3);
-
 
 // HELPER METHODS
 const isSequential = (a: number, b: number) => b - a === 1;

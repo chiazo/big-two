@@ -1,15 +1,26 @@
 import { Card } from "./card.js";
-import { shuffle } from "underscore"
-import { CardSuit, DECK_SIZE, RANK_COUNT, RANKS, sortCards } from "./common.ts";
+import { shuffle } from "underscore";
+import { DECK_SIZE, RANK_COUNT, sortCards } from "./common.ts";
+import { CardSuit, RANKS } from "./constants.ts";
 
 export class Deck {
+  static LOWEST_CARD = new Card(
+    CardSuit.DIAMONDS.toString(),
+    CardSuit.DIAMONDS.symbol,
+    3
+  );
   size: number;
   rankCount: number;
   cards: Card[];
 
-  constructor(cards = this.createCards(), shuffle = true, size = DECK_SIZE, rankCount = RANK_COUNT) {
+  constructor(
+    cards = this.createCards(),
+    shuffle = true,
+    size = DECK_SIZE,
+    rankCount = RANK_COUNT
+  ) {
     if (cards.length > DECK_SIZE) {
-      throw new Error(`Cards in deck exceed ${DECK_SIZE}`)
+      throw new Error(`Cards in deck exceed ${DECK_SIZE}`);
     }
 
     this.size = size;
@@ -22,19 +33,17 @@ export class Deck {
 
   shuffle() {
     if (this.cards.length === DECK_SIZE) {
-      this.cards = shuffle(this.cards)
+      this.cards = shuffle(this.cards);
     }
   }
 
   sort() {
-    this.cards.sort(sortCards)
+    this.cards.sort(sortCards);
   }
 
   removeCards(cards: Card[]) {
     const mapping = cards.map((c) => c.toString());
-    this.cards = this.cards.filter(
-      (c) => !mapping.includes(c.toString())
-    );
+    this.cards = this.cards.filter((c) => !mapping.includes(c.toString()));
   }
 
   createCards() {

@@ -1,4 +1,5 @@
-import { CardSuit, RANKS } from "./common.ts";
+import { CardSuit, RANKS } from "./constants.ts"
+
 
 export class Card {
   suit: string;
