@@ -142,6 +142,8 @@ export const RANKS = {
   },
 };
 
+export const THREE_OF_DIAMONDS = new Card(CardSuit.DIAMONDS.toString(), CardSuit.DIAMONDS.symbol, 3);
+
 
 // HELPER METHODS
 const isSequential = (a: number, b: number) => b - a === 1;

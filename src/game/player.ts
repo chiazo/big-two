@@ -1,3 +1,5 @@
+import { Table } from "console-table-printer";
+import { groupBy } from 'underscore';
 import { Card } from "./card.ts";
 import {
   buildNonSequentialCombos,
@@ -13,10 +15,9 @@ import {
   sortByRank,
   sortCards,
   sortHands,
+  THREE_OF_DIAMONDS
 } from "./common.ts";
 import { Hand } from "./hand.js";
-import { Table } from "console-table-printer";
-import { max, groupBy } from 'underscore';
 export class SubCombo {
   rank: string;
   hand: Hand;
@@ -52,6 +53,10 @@ export class Player {
     return this.hand.cards;
   }
 
+  has(card: Card) {
+    return this.hand.cards.some((c) => c.toString() === card.toString())
+  }
+
   randomName() {
     const index = Math.floor(Math.random() * Player.RANDOM_NAMES.length);
     const name = Player.RANDOM_NAMES[index];
@@ -59,7 +64,7 @@ export class Player {
     return name;
   }
 
-  playCombo(combo: Hand, lastHandPlayed: Hand | undefined) {
+  playCombo(combo: Hand, lastHandPlayed: Hand | undefined, round: number) {
     const cardCount =
       lastHandPlayed !== undefined ? lastHandPlayed.cards.length : Math.max(combo.cards.length, 1);
     const minCardsRequired = Math.min(cardCount, MAX_PLAYABLE_CARDS);
@@ -93,6 +98,16 @@ export class Player {
       };
     }
 
+    if (
+      round === 0 && !lastHandPlayed && !combo.has(THREE_OF_DIAMONDS)
+    ) {
+      return {
+        validCombo: false,
+        comboPlayed: undefined,
+        error: "3 of diamonds must be in the game's first played hand",
+      };
+    }
+
     return {
       validCombo: true,
       comboPlayed: combo,
@@ -107,12 +122,12 @@ export class Player {
     );
   }
 
-  autoPlay(lastHandPlayed: Hand | undefined) {
+  autoPlay(lastHandPlayed: Hand | undefined, round: number) {
     if (!this.isComputer) {
       return;
     }
     this.calculateCombos();
-    return this.playBestHand(lastHandPlayed);
+    return this.playBestHand(lastHandPlayed, round);
   }
 
   skipRound() {
@@ -127,13 +142,22 @@ export class Player {
     this.skip = false;
   }
 
-  playBestHand(lastHandPlayed: Hand | undefined) {
-    const isRoundLeader = lastHandPlayed == undefined;
+  playBestHand(lastHandPlayed: Hand | undefined, round: number) {
+    let bestHandForRound;
 
-    const bestCombo = Object.keys(this.combos).reverse().find(k => { const subcombos = this.combos[k as keyof typeof COMBOS]; return subcombos && subcombos.length > 0 })
-    const bestComboValues: SubCombo[] = this.combos[bestCombo as keyof typeof COMBOS] || []
-    const bestHandOverall = bestComboValues.sort((a: SubCombo, b: SubCombo) => sortHands(a.hand, b.hand) === a.hand ? 1 : -1).pop()?.hand
-    const bestHandForRound = isRoundLeader ? bestHandOverall : this.bestHand(COMBOS[lastHandPlayed.type as keyof typeof COMBOS]);
+    const isRoundLeader = lastHandPlayed == undefined;
+    if (isRoundLeader) {
+      const mustPlayThreeOfDiamonds = isRoundLeader && round === 0 && this.has(THREE_OF_DIAMONDS)
+      if (mustPlayThreeOfDiamonds) {
+        bestHandForRound = Object.values(this.combos).flat().find((s) => s.hand.has(THREE_OF_DIAMONDS))?.hand
+      } else { // otherwise play the best overall hand
+        const bestCombo = Object.keys(this.combos).reverse().find(k => { const subcombos = this.combos[k as keyof typeof COMBOS]; return subcombos && subcombos.length > 0 })
+        const bestComboValues: SubCombo[] = this.combos[bestCombo as keyof typeof COMBOS] || []
+        bestHandForRound = bestComboValues.sort((a: SubCombo, b: SubCombo) => sortHands(a.hand, b.hand) === a.hand ? 1 : -1).pop()?.hand
+      }
+    } else { // this means we have to follow the pattern already set by the prev player
+      bestHandForRound = this.bestHand(COMBOS[lastHandPlayed.type as keyof typeof COMBOS]);
+    }
 
     // skip if you don't have a hand for this round
     if (!bestHandForRound) {
@@ -142,12 +166,12 @@ export class Player {
     }
 
     // skip if you can't beat the last hand played
-    if (!isRoundLeader && !bestHandForRound.beats(lastHandPlayed)) {
+    if (!isRoundLeader && (lastHandPlayed && !bestHandForRound.beats(lastHandPlayed))) {
       this.skipRound();
       return;
     }
 
-    const result = this.playCombo(bestHandForRound, lastHandPlayed);
+    const result = this.playCombo(bestHandForRound, lastHandPlayed, round);
     if (!result.validCombo || !result.comboPlayed) {
       logMessage(`Uh oh! ${this.name} played an invalid combo`);
     }
@@ -162,9 +186,9 @@ export class Player {
     if (type === COMBOS.FULL_HAND) {
       return availableMoves.map((c) => c.hand).reduce(getMaxHand);
     }
-    const maxRank = max(
-      availableMoves.map((c) => c.hand.cards.reduce(getMaxRank)).map((c) => c.rank)
-    );
+    const maxRank =
+      availableMoves.map((c) => c.hand.cards.reduce(getMaxRank)).sort(sortCards).map((c) => c.rank).pop()
+
     const cards = this.hand.cards
       .filter((c) => c.rank === maxRank)
       .slice(0, CardCombo[type].count);
