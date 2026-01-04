@@ -296,12 +296,12 @@ const findStraight = (deck: Deck, isFlush: boolean = false): Card[] => {
   return []
 }
 
-export const getDesiredHand = (deck: Deck = new Deck(), c: COMBOS = COMBOS.SINGLE, fullHand: FULL_HAND_TYPES = FULL_HAND_TYPES.FLUSH): Hand | undefined => {
+export const getDesiredHand = (deck: Deck = new Deck(), c: COMBOS = COMBOS.SINGLE, fullHand: FULL_HAND_TYPES = FULL_HAND_TYPES.FLUSH, rank: number = -1): Hand | undefined => {
   const combo = CardCombo[c]
   let hand;
 
   if (c !== COMBOS.FULL_HAND) {
-    hand = getSpecificHand(deck, false, combo.count, combo.isValid)
+    hand = getSpecificHand(deck, false, combo.count, combo.isValid, rank)
     if (hand) deck.removeCards(hand.cards)
     return hand;
   }
@@ -345,7 +345,7 @@ export const getDesiredHand = (deck: Deck = new Deck(), c: COMBOS = COMBOS.SINGL
   return hand;
 }
 
-const getSpecificHand = (deck: Deck, suitMatters: boolean, count: number, isValidFx: (h: Hand) => boolean) => {
+export const getSpecificHand = (deck: Deck, suitMatters: boolean, count: number, isValidFx: (h: Hand) => boolean, desiredRank: number = -1, desiredSuit: CardSuit | undefined = undefined) => {
   if (deck.cards.length === count) {
     const hand = new Hand(deck.cards.slice(0, count))
     if (isValidFx(hand)) {
@@ -358,14 +358,28 @@ const getSpecificHand = (deck: Deck, suitMatters: boolean, count: number, isVali
 
   if (suitMatters) {
     for (const suit of shuffle(Object.keys(suitCount))) {
+      if (desiredSuit && suit !== desiredSuit.toString()) {
+        continue;
+      }
       const { count: filteredCount, cards: filteredCards } = suitCount[suit]
       if (count <= filteredCount) cards = shuffle(filteredCards).slice(0, count)
+      if (desiredRank > 0) {
+        const withDesiredRank = filteredCards.filter((c) => c.rank === desiredRank)
+        if (isEmpty(withDesiredRank)) {
+          continue;
+        } else {
+          cards = withDesiredRank.slice(0, count)
+        }
+      }
       if (cards && !isEmpty(cards.length)) {
         break;
       }
     }
   } else {
     for (const rank of shuffle(Object.keys(rankCount))) {
+      if (desiredRank > 0 && parseInt(rank) !== desiredRank) {
+        continue;
+      }
       const { count: filteredCount, cards: filteredCards } = rankCount[rank]
       if (count <= filteredCount) cards = shuffle(filteredCards).slice(0, count)
       if (cards && !isEmpty(cards.length)) {
@@ -374,7 +388,7 @@ const getSpecificHand = (deck: Deck, suitMatters: boolean, count: number, isVali
     }
   }
 
-  const hand = new Hand(cards.slice(0, count))
+  const hand = new Hand(cards)
   if (isValidFx(hand)) {
     return hand;
   }

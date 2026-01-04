@@ -6,6 +6,7 @@ import {
   findHandCount,
   FullHandCombo,
   getMaxHand,
+  MAX_PLAYABLE_CARDS,
   sortCards,
 } from "./common.ts";
 
@@ -66,7 +67,22 @@ export class Hand {
 
   join(hand: Hand | undefined) {
     if (hand) {
+      if (this.cards.length + hand.cards.length > MAX_PLAYABLE_CARDS) {
+        throw new RangeError("cannot merge hands and exceed 5 cards")
+      }
+
+      if (this.cards.some((c) => hand.has(c))) {
+        throw new Error("cannot merge hands that have overlapping cards")
+      }
+
       this.cards = this.cards.concat(hand.cards);
+      let type;
+      if (this.cards.length === 5) {
+        type = Object.values(FullHandCombo).filter((c: FullHandCombo) => c.isValid(this)).map((c: FullHandCombo) => c.key).pop()
+      } else {
+        type = Object.values(CardCombo).filter((c: CardCombo) => c.isValid(this)).map((c: CardCombo) => c.toString()).pop()
+      }
+      if (type) this.type = type
       this.sort();
     }
     return this;
