@@ -9,22 +9,22 @@ export class Card {
   faceCard: boolean;
 
   constructor(suit: string, symbol: string, rank: number) {
-    const [validSuit, validRank] = this.validateCard(suit, rank);
+    const [validSuit, validRank, validSymbol] = this.validateCard(suit, rank, symbol);
 
-    if (validSuit && validRank) {
-      const faceCard = this.isFaceCard(rank);
+    if (validSuit && validRank && validSymbol) {
+      const faceCard = this.#isFaceCard(rank);
       this.suit = suit;
       this.rank = rank;
       this.symbol = symbol;
       this.faceCard = faceCard;
-      this.name = this.getCardName(rank, faceCard);
+      this.name = this.#getCardName(rank, faceCard);
     } else {
-      throw new Error(`${rank} of ${symbol} is invalid`)
+      throw new RangeError(`${rank} of ${symbol} is invalid`)
     }
   }
 
-  validateCard(suit: string, rank: number) {
-    return [this.validateSuit(suit), this.validateRank(rank)];
+  validateCard(suit: string, rank: number, symbol: string) {
+    return [this.validateSuit(suit), this.validateRank(rank), this.validateSymbol(symbol)];
   }
 
   validateSuit(suit: string) {
@@ -32,7 +32,7 @@ export class Card {
   }
 
   validateRank(rank: number) {
-    if (this.isFaceCard(rank)) {
+    if (this.#isFaceCard(rank)) {
       return true;
     }
 
@@ -42,11 +42,15 @@ export class Card {
     );
   }
 
+  validateSymbol(symbol: string) {
+    return Object.values(CardSuit).map((c: CardSuit) => c.symbol).includes(symbol);
+  }
+
   toString() {
     return `${this.symbol} ${this.name || this.rank}`;
   }
 
-  getCardName(rank: number, isFaceCard: boolean) {
+  #getCardName(rank: number, isFaceCard: boolean) {
     const faceCardName = Object.keys(RANKS.FACE_CARDS).find(
       (c: string) => RANKS.FACE_CARDS[c as keyof typeof RANKS.FACE_CARDS] === rank
     );
@@ -59,7 +63,7 @@ export class Card {
       : "";
   }
 
-  isFaceCard(rank: number) {
+  #isFaceCard(rank: number) {
     return Object.values(RANKS.FACE_CARDS).indexOf(rank) >= 0;
   }
 }
