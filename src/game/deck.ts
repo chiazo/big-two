@@ -10,21 +10,17 @@ export class Deck {
     3
   );
   size: number;
-  rankCount: number;
   cards: Card[];
 
   constructor(
-    cards = this.createCards(),
     shuffle = true,
-    size = DECK_SIZE,
-    rankCount = RANK_COUNT
+    cards = this.createCards(),
   ) {
-    if (cards.length > DECK_SIZE) {
-      throw new Error(`Cards in deck exceed ${DECK_SIZE}`);
+    if (cards.length !== DECK_SIZE) {
+      throw new RangeError(`Number of cards in deck does not match ${DECK_SIZE}`);
     }
 
-    this.size = size;
-    this.rankCount = rankCount;
+    this.size = cards.length;
     this.cards = cards;
     if (shuffle) {
       this.shuffle();
@@ -37,6 +33,10 @@ export class Deck {
     }
   }
 
+  has(c: Card) {
+    return this.cards.map((c) => c.toString()).includes(c.toString())
+  }
+
   sort() {
     this.cards.sort(sortCards);
   }
@@ -44,6 +44,7 @@ export class Deck {
   removeCards(cards: Card[]) {
     const mapping = cards.map((c) => c.toString());
     this.cards = this.cards.filter((c) => !mapping.includes(c.toString()));
+    this.size = this.cards.length
   }
 
   createCards() {

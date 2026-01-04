@@ -310,7 +310,7 @@ export const getRandomHand = (deck: Deck = new Deck(), c: COMBOS = COMBOS.SINGLE
     case FULL_HAND_TYPES.STRAIGHT:
       deck.shuffle()
       const straight = findStraight(deck)
-      hand = getSpecificHand(new Deck(straight), true, combo.count, FullHandCombo.STRAIGHT.isValid)
+      hand = getSpecificHand(new Deck(true, straight), true, combo.count, FullHandCombo.STRAIGHT.isValid)
       break;
     case FULL_HAND_TYPES.FLUSH:
       hand = getSpecificHand(deck, true, combo.count, FullHandCombo.FLUSH.isValid)
@@ -337,7 +337,7 @@ export const getRandomHand = (deck: Deck = new Deck(), c: COMBOS = COMBOS.SINGLE
     case FULL_HAND_TYPES.STRAIGHT_FLUSH:
       const straightFlush = findStraight(deck, true)
       if (straightFlush.length === CardCombo.FULL_HAND.count) {
-        hand = getSpecificHand(new Deck(straightFlush, false), true, combo.count, FullHandCombo.STRAIGHT_FLUSH.isValid)
+        hand = getSpecificHand(new Deck(false, straightFlush), true, combo.count, FullHandCombo.STRAIGHT_FLUSH.isValid)
       }
       break;
   }
