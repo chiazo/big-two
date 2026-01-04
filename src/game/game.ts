@@ -1,23 +1,23 @@
 import { input, select } from "@inquirer/prompts";
+import { Table } from "console-table-printer";
 import fs from "fs";
 import { select as multi } from "inquirer-select-pro";
 import { load } from "js-yaml";
 import { dirname, resolve } from "path";
 import { fileURLToPath } from "url";
-import { logMessage, MAX_PLAYERS, RANK_COUNT, SKIP_ROUND } from "./common.ts";
+import { DECK_SIZE, logMessage, MAX_PLAYERS, SKIP_ROUND } from "./common.ts";
 import { Deck } from "./deck.js";
 import { Hand } from "./hand.js";
-import { Card } from "./card.ts";
 import { Player } from "./player.js";
-import { Table } from "console-table-printer"
+import { isEmpty } from "underscore";
 
 /* HELPER METHODS */
-const logMove = (message) => {
+const logMove = (message: string) => {
   console.log(` ---- ${message} ---- `);
 };
 
-const promptUserAtStart = async (entry) => {
-  const userInputs = {};
+const promptUserAtStart = async (entry: any) => {
+  const userInputs: { [key: string]: string } = {};
   const regex = /\$\{placeholder\}/i;
   for (const idx in entry) {
     const obj = entry[idx];
@@ -25,13 +25,13 @@ const promptUserAtStart = async (entry) => {
     const choices = obj["Choices"];
     const response = obj["Response"];
     const variableName = obj["Variable"];
-    let result: string[] = [];
+    let result: string = "";
 
     if (prompt) {
       if (choices) {
         result = await select({
           message: prompt,
-          choices: choices.split(",").map((c) => {
+          choices: choices.split(",").map((c: string) => {
             return {
               name: c,
               value: c,
@@ -42,7 +42,7 @@ const promptUserAtStart = async (entry) => {
       } else {
         await input({ message: prompt }).then((answer) => {
           handleUserInput(response, regex, variableName, answer);
-          result = answer.split(",").join("").split(" ");
+          result = answer.split(",").join("");
         });
       }
     }
@@ -89,23 +89,25 @@ const promptUserDuringGame = async (player: Player, lastHandPlayed: Hand | undef
     if (comboPlayed && lastHandPlayed) {
       if (comboPlayed.cards.length !== lastHandPlayed.cards.length) {
         logMessage(
-          `${player.name} played cards that don't match the number of cards in the last hand played. The hand to beat is ${lastHandPlayed.toString()} Try again.`
+          `${player.name} played cards that don't match the number of cards in the last hand played (${lastHandPlayed.cards.length}). The hand to beat is ${lastHandPlayed.toString()} Try again.`
         );
         await promptUserDuringGame(player, lastHandPlayed);
       }
       if (!comboPlayed.beats(lastHandPlayed)) {
         logMessage(
-          `${player.name} played a combo that doesn't beat the last hand played. Try again.`
+          `${player.name} played a combo that doesn't beat the last hand played (${lastHandPlayed.toString()}). Try again.`
         );
         await promptUserDuringGame(player, lastHandPlayed);
       }
     }
-    player.removeCards(comboPlayed);
+    if (comboPlayed && validCombo && (!lastHandPlayed || comboPlayed.beats(lastHandPlayed))) {
+      player.removeCards(comboPlayed);
+    }
     return comboPlayed;
   }
 };
 
-const handleUserInput = (response, regex, variableName, answer) => {
+const handleUserInput = (response: string, regex: RegExp, variableName: string, answer: string) => {
   if (variableName == "playerNames") {
     console.log(response.replace(regex, answer.replace(", ", " + ")));
   } else {
@@ -113,20 +115,21 @@ const handleUserInput = (response, regex, variableName, answer) => {
   }
 };
 
+// TODO: Ensure 3 of Diamonds starts the game
+// TODO: Ensure round continues until the player can go again
 export class Game {
-  players;
-  deck;
+  players: Player[];
+  deck: Deck;
 
   constructor(players = [], deck = new Deck()) {
-    if (players.length < 5) {
-      this.players = players;
+    if (players.length > 4 || deck.cards.length < 52 || deck.cards.length > 54) {
+      throw new Error("Invalid number of players or cards for this game")
     }
-    if (deck.cards.length >= 52) {
-      this.deck = deck;
-    }
+    this.players = players;
+    this.deck = deck;
   }
 
-  importScript() {
+  importScript(): any {
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = dirname(__filename);
     const path = resolve(__dirname, "./script.yaml");
@@ -135,7 +138,7 @@ export class Game {
   }
 
   async initialize() {
-    let userInputs = {};
+    let userInputs: { [key: string]: string } = {};
 
     for (const [_, entry] of Object.entries(this.importScript())) {
       if (typeof entry !== "string") {
@@ -143,12 +146,12 @@ export class Game {
       }
     }
 
-    const playerCount = userInputs["playerCount"];
-    const players = userInputs["playerNames"];
+    const playerCount: number = parseInt(userInputs["playerCount"]);
+    const players: string[] = userInputs["playerNames"].split(" ");
 
     // ensure the expected players matches
     if (
-      parseInt(playerCount) !== players.length ||
+      playerCount !== players.length ||
       players.length > MAX_PLAYERS
     ) {
       this.restart(
@@ -163,7 +166,7 @@ export class Game {
     }
   }
 
-  start(players) {
+  start(players: string[]) {
     // set up the live players
     players.forEach((p) => {
       const player = new Player(this.#getHand(), p, false);
@@ -195,12 +198,12 @@ export class Game {
     if (this.players.map(p => p.hand.cards.length).reduce((a, b) => Math.min(a, b)) > 5) {
       return;
     }
-    const table = new Table({ columns: [{ name: "player" }, { name: "cards left", color: "red" }], defaultColumnOptions: { alignment: "center" }, rows: this.players.map((p) => { return { player: p.name, cards_left: p.hand.cards.length } }) });
+    const table = new Table({ columns: [{ name: "player" }, { name: "cards_left", color: "red" }], defaultColumnOptions: { alignment: "center" }, rows: this.players.map((p) => { return { player: p.name, cards_left: p.hand.cards.length } }) });
     table.printTable()
   }
 
-  restart(message) {
-    if (message.length > 0) {
+  restart(message: string) {
+    if (!isEmpty(message)) {
       logMessage(message);
     }
     this.initialize();
@@ -213,7 +216,8 @@ export class Game {
     }
   }
 
-  playerOrder({ lastPlayer }): Player[] {
+  playerOrder(stats: { lastPlayer: string }): Player[] {
+    const { lastPlayer } = stats
     if (lastPlayer === undefined || lastPlayer.length === 0) {
       return this.players;
     }
@@ -222,14 +226,12 @@ export class Game {
   }
 
   async startRound() {
-    const stats: { lastPlayer: string, lastHandPlayed: Hand | undefined } = {
+    const stats: { lastPlayer: string, lastHandPlayed: Hand | undefined, roundOver: boolean } = {
       lastPlayer: "",
       lastHandPlayed: undefined,
+      roundOver: false
     };
 
-    const [winner] = this.players
-      .filter((p) => p.hand.cards.length === 0)
-      .map((p) => p.name);
     while (!this.isGameOver()) {
       for (const player of this.playerOrder(stats)) {
         this.updateStats(stats, player)
@@ -248,29 +250,34 @@ export class Game {
             player.skipRound();
             continue;
           }
-          stats.lastHandPlayed = computerResult.comboPlayed;
-          player.removeCards(computerResult.comboPlayed);
-          if (computerResult.comboPlayed) {
+
+          if (computerResult.comboPlayed && computerResult.validCombo && (!stats.lastHandPlayed || computerResult.comboPlayed.beats(stats.lastHandPlayed))) {
+            stats.lastHandPlayed = computerResult.comboPlayed;
+            player.removeCards(computerResult.comboPlayed);
             computerResult.comboPlayed.toString()
           }
         }
-        logMove(
-          `${player.name} is taking their turn${stats.lastPlayer.length > 0 ? ` after ${stats.lastPlayer}` : ``
-          }! They played a ${stats.lastHandPlayed?.type}.`
-        );
+        if (!player.skip) {
+          logMove(
+            `${player.name} is taking their turn${!isEmpty(stats.lastPlayer) ? ` after ${stats.lastPlayer}` : ``
+            }! They played a ${stats.lastHandPlayed?.type.replace("_", " ")}.`
+          );
+        }
         stats.lastHandPlayed?.logMove()
         stats.lastPlayer = player.name;
       }
     }
   }
 
-  updateStats(stats, player: Player) {
+  updateStats(stats: any, player: Player) {
     if (stats.lastPlayer == player.name) {
       const winner = player.name
       stats.lastPlayer = "";
       stats.lastHandPlayed = undefined;
+      stats.roundOver = true
       this.resetRound(winner);
     }
+    stats.roundOver = false
   }
 
   resetRound(winner = "") {
@@ -278,16 +285,12 @@ export class Game {
     this.players.forEach((p) => p.resetRound());
   }
 
-  #getHand() {
-    let i = 0;
-    let cards: Card[] = [];
-
-    while (i < RANK_COUNT && this.deck.cards.length > 0) {
-      let randCard = Math.floor(Math.random() * this.deck.cards.length);
-      const [card] = this.deck.cards.splice(randCard, 1);
-      cards.push(card);
-      i++;
+  #getHand(): Hand {
+    if (!this.deck || !this.deck.cards) {
+      throw new Error("Game cannot begin without a valid hand")
     }
+    const cardCount = Math.round(DECK_SIZE / MAX_PLAYERS)
+    const cards = this.deck.cards.splice(0, cardCount)
     return new Hand(cards);
   }
 }

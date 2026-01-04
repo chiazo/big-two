@@ -11,15 +11,17 @@ import {
   MAX_PLAYABLE_CARDS,
   SEPARATOR,
   sortByRank,
+  sortCards,
   sortHands,
 } from "./common.ts";
 import { Hand } from "./hand.js";
 import { Table } from "console-table-printer";
+import { max, groupBy } from 'underscore';
 export class SubCombo {
   rank: string;
   hand: Hand;
   type: string;
-  constructor(rank = '', hand, type) {
+  constructor(rank = '', hand: Hand, type: string) {
     this.rank = rank;
     this.hand = hand;
     this.type = type;
@@ -35,7 +37,7 @@ export class Player {
   static RANDOM_NAMES = ["Obi", "Toby", "Adanna", "Nneoma", "Kamsi"];
   name: string;
   hand: Hand;
-  combos: { [key in COMBOS]?: SubCombo[] };
+  combos: { [key in COMBOS]?: SubCombo[] } = {};
   skip: boolean;
   isComputer: boolean;
 
@@ -98,7 +100,7 @@ export class Player {
     };
   }
 
-  removeCards(combo) {
+  removeCards(combo: Hand) {
     const mapping = combo.cards.map((c) => c.toString());
     this.hand.cards = this.cards().filter(
       (c) => !mapping.includes(c.toString())
@@ -128,10 +130,10 @@ export class Player {
   playBestHand(lastHandPlayed: Hand | undefined) {
     const isRoundLeader = lastHandPlayed == undefined;
 
-    const bestCombo = Object.keys(this.combos).reverse().find(k => this.combos[k].length > 0)
-    const bestComboValues = bestCombo ? this.combos[bestCombo] : []
-    const bestHandOverall = bestComboValues.sort((a: SubCombo, b: SubCombo) => sortHands(a.hand, b.hand)).pop()?.hand
-    const bestHandForRound = isRoundLeader ? bestHandOverall : this.bestHand(lastHandPlayed.type);
+    const bestCombo = Object.keys(this.combos).reverse().find(k => { const subcombos = this.combos[k as keyof typeof COMBOS]; return subcombos && subcombos.length > 0 })
+    const bestComboValues: SubCombo[] = this.combos[bestCombo as keyof typeof COMBOS] || []
+    const bestHandOverall = bestComboValues.sort((a: SubCombo, b: SubCombo) => sortHands(a.hand, b.hand) === a.hand ? 1 : -1).pop()?.hand
+    const bestHandForRound = isRoundLeader ? bestHandOverall : this.bestHand(COMBOS[lastHandPlayed.type as keyof typeof COMBOS]);
 
     // skip if you don't have a hand for this round
     if (!bestHandForRound) {
@@ -152,7 +154,7 @@ export class Player {
     return result;
   }
 
-  bestHand(type) {
+  bestHand(type: COMBOS) {
     const availableMoves = this.combos[type];
     if (!availableMoves || availableMoves.length == 0) {
       return;
@@ -160,8 +162,8 @@ export class Player {
     if (type === COMBOS.FULL_HAND) {
       return availableMoves.map((c) => c.hand).reduce(getMaxHand);
     }
-    const maxRank = parseInt(
-      availableMoves.map(({ rank }) => rank).reduce(getMaxRank)
+    const maxRank = max(
+      availableMoves.map((c) => c.hand.cards.reduce(getMaxRank)).map((c) => c.rank)
     );
     const cards = this.hand.cards
       .filter((c) => c.rank === maxRank)
@@ -169,28 +171,28 @@ export class Player {
     return new Hand(cards);
   }
 
-  eligibleMoves(lastComboPlayed: Hand) {
-    const keys = Object.keys(this.combos).filter((k) => lastComboPlayed.type == k)
-    return keys.reduce((prev, curr) => prev.concat(this.combos[curr].map((cl) => cl.hand.cards.map(c => c.toString()))), []).flat()
+  eligibleMoves(lastComboPlayed: Hand): string[] {
+    const keys = Object.keys(this.combos).filter((k) => lastComboPlayed.type == k).map((k) => this.combos[k as keyof typeof COMBOS]).flat()
+    if (!keys) {
+      return [];
+    }
+    return keys.reduce((prev: Card[], curr) => {
+      return prev.concat(curr ? curr.hand.cards : [])
+    }, []).sort(sortCards).map((c) => c.toString())
   }
 
   logCombos(lastComboPlayed: Hand | undefined) {
+    this.calculateCombos()
     console.log(`\n ---- The combos you have available are: ---- `);
-    let keys = Object.keys(this.combos)
+    let keys: COMBOS[] = Object.keys(this.combos).map(k => COMBOS[k as keyof typeof COMBOS])
     if (lastComboPlayed) {
       keys = keys.filter((k) => lastComboPlayed.type == k)
     }
-
-    const rows = keys.filter(k => this.combos[k].length > 0).map(k => {
-      return {
-        combo: [... new Set(this.combos[k].map(s => s.type))].pop(), hands: this.combos[k].map(
-          (v) =>
-            v.rank ||
-            v.hand.toString()
-        )
-      }
-    });
+    const subcombos = keys.filter((k) => this.combos[k] && this.combos[k].length > 0).map((k) => this.combos[k]).reduce((prev, curr) => prev?.concat(curr || []), [])?.flat() || []
+    const groups = groupBy(subcombos.map((s) => { return { combo: s.type, hands: s.hand.cards.length === 5 ? s.hand.toString() : [...new Set(s.hand.rank())].pop() } }), (c) => c.combo)
+    const rows = Object.entries(groups).map(([type, vals]) => { return { combo: type.replace("_", " "), hands: vals.map(v => v.hands) } })
     const table = new Table({ columns: [{ name: "combo", color: "yellow" }, { name: "hands", color: "green" }], defaultColumnOptions: { alignment: "center" }, rows: rows });
+
     if (rows.length > 0) {
       table.printTable()
     } else {
@@ -200,9 +202,8 @@ export class Player {
   }
 
   calculateCombos() {
-    const singleCombos = this.getSingleCombos()
-    const combos = {
-      [COMBOS.SINGLE]: singleCombos,
+    const combos: { [key in COMBOS]?: SubCombo[] } = {
+      [COMBOS.SINGLE]: this.getSingleCombos(),
       [COMBOS.PAIR]: this.getPairCombos(),
       [COMBOS.TRIPLE]: this.getTripleCombos(),
     };

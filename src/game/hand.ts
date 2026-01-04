@@ -1,17 +1,16 @@
+import { Table } from "console-table-printer";
+import { Card } from "./card.js";
 import {
   calculateHandCount,
-  findHandCount,
   CardCombo,
+  findHandCount,
   FullHandCombo,
   getMaxHand,
   sortCards,
-  sortByRank,
 } from "./common.ts";
-import { Card } from "./card.js"
-import { printTable, Table } from "console-table-printer";
 
 export class Hand {
-  cards: Card[];
+  cards: Card[] = [];
   type: string;
 
   constructor(cards: Card[], type = this.defaultType(cards.length)) {
@@ -19,9 +18,9 @@ export class Hand {
     this.type = type || "";
   }
 
-  defaultType(cardCount) {
-    for (const type in CardCombo) {
-      if (CardCombo[type].count === cardCount) {
+  defaultType(cardCount: number) {
+    for (const [type, val] of Object.entries(CardCombo)) {
+      if (val.count === cardCount) {
         return type;
       }
     }
@@ -61,7 +60,7 @@ export class Hand {
     return this.cards.map((c) => c.rank);
   }
 
-  throwErr(operation) {
+  throwErr(operation: string) {
     throw new Error(`${operation} is invalid for this hand.`)
   }
 
@@ -73,7 +72,7 @@ export class Hand {
     return this;
   }
 
-  beats(hand) {
+  beats(hand: Hand) {
     const maxVal: Hand = getMaxHand(hand, this);
     return this.toString() === maxVal.toString();
   }
@@ -93,7 +92,7 @@ export class Hand {
       .join(" || ");
   }
 
-  printCards(playerName) {
+  printCards(playerName: string) {
     console.log("=============================================");
     console.log(`Player ${playerName} has the following cards:`);
     console.log(this.toString());

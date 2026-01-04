@@ -22,15 +22,15 @@ export class Card {
     }
   }
 
-  validateCard(suit, rank) {
+  validateCard(suit: string, rank: number) {
     return [this.validateSuit(suit), this.validateRank(rank)];
   }
 
-  validateSuit(suit) {
+  validateSuit(suit: string) {
     return Object.keys(CardSuit).indexOf(suit) >= 0;
   }
 
-  validateRank(rank) {
+  validateRank(rank: number) {
     if (this.isFaceCard(rank)) {
       return true;
     }
@@ -45,9 +45,9 @@ export class Card {
     return `${this.symbol} ${this.name || this.rank}`;
   }
 
-  getCardName(rank, isFaceCard) {
+  getCardName(rank: number, isFaceCard: boolean) {
     const faceCardName = Object.keys(RANKS.FACE_CARDS).find(
-      (c) => RANKS.FACE_CARDS[c] === rank
+      (c: string) => RANKS.FACE_CARDS[c as keyof typeof RANKS.FACE_CARDS] === rank
     );
     if (isFaceCard) {
       return faceCardName || "";
@@ -58,7 +58,7 @@ export class Card {
       : "";
   }
 
-  isFaceCard(rank) {
+  isFaceCard(rank: number) {
     return Object.values(RANKS.FACE_CARDS).indexOf(rank) >= 0;
   }
 }

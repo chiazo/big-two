@@ -1,21 +1,40 @@
 import { Card } from "./card.js";
-import { CardSuit, DECK_SIZE, RANK_COUNT, RANKS } from "./common.ts";
+import { shuffle } from "underscore"
+import { CardSuit, DECK_SIZE, RANK_COUNT, RANKS, sortCards } from "./common.ts";
 
 export class Deck {
   size: number;
   rankCount: number;
   cards: Card[];
 
-  constructor(size = DECK_SIZE, rankCount = RANK_COUNT) {
-    const cards = this.createCards();
-
-    if (cards.length != DECK_SIZE) {
+  constructor(cards = this.createCards(), shuffle = true, size = DECK_SIZE, rankCount = RANK_COUNT) {
+    if (cards.length > DECK_SIZE) {
       throw new Error(`Cards in deck exceed ${DECK_SIZE}`)
     }
 
     this.size = size;
     this.rankCount = rankCount;
     this.cards = cards;
+    if (shuffle) {
+      this.shuffle();
+    }
+  }
+
+  shuffle() {
+    if (this.cards.length === DECK_SIZE) {
+      this.cards = shuffle(this.cards)
+    }
+  }
+
+  sort() {
+    this.cards.sort(sortCards)
+  }
+
+  removeCards(cards: Card[]) {
+    const mapping = cards.map((c) => c.toString());
+    this.cards = this.cards.filter(
+      (c) => !mapping.includes(c.toString())
+    );
   }
 
   createCards() {

@@ -1,6 +1,8 @@
 import { Card } from "./card.js";
 import { Hand } from "./hand.js";
+import { Deck } from "./deck.js";
 import { SubCombo } from "./player.js";
+import { shuffle, isEmpty } from 'underscore';
 
 // CONSTANTS
 export const DECK_SIZE = 52;
@@ -60,12 +62,11 @@ export class CardCombo {
   });
   static readonly FULL_HAND = new CardCombo(COMBOS.FULL_HAND, 5, (h) => {
     const [key] = Object.keys(FullHandCombo).filter((k) => {
-      return FullHandCombo[k].isValid(h);
+      return FullHandCombo[k as keyof typeof FULL_HAND_TYPES].isValid(h);
     });
 
-    const type = FullHandCombo[key].key;
-    h.type = type;
-    return h.cards.length === 5 && type !== null;
+    h.type = key
+    return h.cards.length === 5 && key !== null;
   });
 
   private constructor(
@@ -112,7 +113,7 @@ export class FullHandCombo {
   );
 
   private constructor(
-    private readonly key: FULL_HAND_TYPES,
+    public readonly key: FULL_HAND_TYPES,
     public readonly sequential: boolean,
     public readonly isValid: (h: Hand) => boolean,
     public readonly ranking: number
@@ -146,8 +147,8 @@ export const RANKS = {
 const isSequential = (a: number, b: number) => b - a === 1;
 
 export const getMaxSuit = (a: Card, b: Card): Card => {
-  const aRanking = CardSuit[a.suit].ranking;
-  const bRanking = CardSuit[b.suit].ranking;
+  const aRanking = CardSuit[a.suit as keyof typeof CardSuit].ranking;
+  const bRanking = CardSuit[b.suit as keyof typeof CardSuit].ranking;
   const maxRanking = Math.max(aRanking, bRanking);
   return maxRanking === aRanking ? a : b;
 };
@@ -207,9 +208,9 @@ export const getMaxHand = (a: Hand, b: Hand): Hand => {
 
 const getMaxFullHand = (a: Hand, b: Hand): Hand => {
   const aType = a.type;
-  const aCombo = FullHandCombo[aType];
+  const aCombo = FullHandCombo[aType as keyof typeof FULL_HAND_TYPES];
   const bType = b.type;
-  const bCombo = FullHandCombo[bType];
+  const bCombo = FullHandCombo[bType as keyof typeof FULL_HAND_TYPES];
 
   if (aCombo.ranking === bCombo.ranking) {
     return getMaxCard(a.max(), b.max()).toString() === a.max().toString() ? a : b;
@@ -217,10 +218,10 @@ const getMaxFullHand = (a: Hand, b: Hand): Hand => {
   return aCombo.ranking > bCombo.ranking ? a : b;
 };
 
-// Five cards of any suit in order
-const isStraight = (hand: Hand): boolean => {
-  const results: { prevCard: number, comparison: boolean[], numbers: number[] } = { prevCard: hand.rank()[0] - 1, comparison: [], numbers: [] }
-  const sequence = hand.rank().reduce(
+const sequentialCards = (input: Card[]) => {
+  const cards = input.map((c) => c.rank)
+  const results: { prevCard: number, comparison: boolean[], numbers: number[] } = { prevCard: cards[0] - 1, comparison: [], numbers: [] }
+  return cards.reduce(
     (results, card) => {
       results.comparison.push(isSequential(results.prevCard, card));
       results.numbers.push(card);
@@ -231,8 +232,17 @@ const isStraight = (hand: Hand): boolean => {
     },
     results
   );
+}
+
+const isStraightSeq = (input: Card[]) => {
+  const sequence = sequentialCards(input)
   const result = [...new Set(sequence.comparison)];
   return result.length === 1 && !!result[0];
+}
+
+// Five cards of any suit in orders
+const isStraight = (hand: Hand): boolean => {
+  return isStraightSeq(hand.cards)
 };
 
 // Five cards of the same suit, irrespective of rank
@@ -260,7 +270,7 @@ const isFourOfAKind = (hand: Hand): boolean => {
 
 // counts the unique number of cards for a specific rank or suit in a hand
 export const calculateHandCount = (hand: Hand, isRankCount: boolean = true) => {
-  const counts = {};
+  const counts: { [key: string]: any } = {};
   const handIterable = isRankCount ? hand.rank() : hand.suit();
   for (const symbol of handIterable) {
     if (symbol in counts) {
@@ -272,8 +282,33 @@ export const calculateHandCount = (hand: Hand, isRankCount: boolean = true) => {
   return counts;
 };
 
+// returns the count of cards left in the deck
+const calculateDeckCount = (deck: Deck) => {
+  const rankCount: { [key: string]: { count: number, cards: Card[] } } = {}
+  const suitCount: { [key: string]: { count: number, cards: Card[] } } = {}
+  for (const card of deck.cards) {
+    if (card.suit in suitCount) {
+      suitCount[card.suit].count++;
+      suitCount[card.suit].cards.push(card);
+    } else {
+      suitCount[card.suit] = { count: 1, cards: [card] }
+    }
+
+    if (card.rank in rankCount) {
+      rankCount[card.rank].count++;
+      rankCount[card.rank].cards.push(card)
+    } else {
+      rankCount[card.rank] = { count: 1, cards: [card] }
+    }
+  }
+  return {
+    rankCount: rankCount,
+    suitCount: suitCount
+  }
+}
+
 // filters on whether the explict count desired is represented in a given hand
-export const findHandCount = (counts, desiredCount): string => {
+export const findHandCount = (counts: { [key: string]: any }, desiredCount: number): string => {
   for (const [rank, count] of Object.entries(counts)) {
     if (count === desiredCount) return rank;
   }
@@ -288,6 +323,101 @@ export const fullHandCount = (hand: Hand) => {
     suitCount: calculateHandCount(hand, false),
   };
 };
+
+const findStraight = (deck: Deck, isFlush: boolean = false): Card[] => {
+  let straightCards: Card[] = []
+  for (const suit in CardSuit) {
+    const filtered = isFlush ? deck.cards.filter((c) => c.suit === suit) : deck.cards
+    const uniqueRanks = new Hand(filtered.filter((c, idx, arr) => {
+      return idx === arr.findIndex((card) => card.rank === c.rank)
+    })).sort()
+    straightCards = straightCards.concat(uniqueRanks.cards)
+  }
+  for (let i = 0; i < straightCards.length - 5; i += 1) {
+    const seq = straightCards.slice(i, i + 5);
+    if (isStraightSeq(seq)) {
+      return seq
+    }
+  }
+  return []
+}
+
+export const getRandomHand = (deck: Deck = new Deck(), c: COMBOS = COMBOS.SINGLE, fullHand: FULL_HAND_TYPES = FULL_HAND_TYPES.FLUSH): Hand | undefined => {
+  const combo = CardCombo[c]
+  let hand;
+
+  if (c !== COMBOS.FULL_HAND) {
+    hand = getSpecificHand(deck, false, combo.count, combo.isValid)
+    if (hand) deck.removeCards(hand.cards)
+    return hand;
+  }
+
+  switch (fullHand) {
+    case FULL_HAND_TYPES.STRAIGHT:
+      deck.shuffle()
+      const straight = findStraight(deck)
+      hand = getSpecificHand(new Deck(straight), true, combo.count, FullHandCombo.STRAIGHT.isValid)
+      break;
+    case FULL_HAND_TYPES.FLUSH:
+      hand = getSpecificHand(deck, true, combo.count, FullHandCombo.FLUSH.isValid)
+      break;
+    case FULL_HAND_TYPES.FULL_HOUSE:
+      const double = getSpecificHand(deck, false, CardCombo.PAIR.count, CardCombo.PAIR.isValid)
+      const triple = getSpecificHand(deck, false, CardCombo.TRIPLE.count, CardCombo.TRIPLE.isValid)
+      if (double && triple) {
+        hand = new Hand(triple?.cards.concat(double?.cards))
+      }
+      break;
+    case FULL_HAND_TYPES.FOUR_OF_A_KIND:
+      const four = getSpecificHand(deck, false, 4, (h) => true)
+      const single = getSpecificHand(deck, false, CardCombo.SINGLE.count, CardCombo.SINGLE.isValid)
+      if (four && single) {
+        const result = new Hand(four.cards.concat(single.cards))
+        if (result && FullHandCombo.FOUR_OF_A_KIND.isValid(result)) {
+          hand = result
+          hand.type = FULL_HAND_TYPES.FOUR_OF_A_KIND
+
+        }
+      }
+      break;
+    case FULL_HAND_TYPES.STRAIGHT_FLUSH:
+      const straightFlush = findStraight(deck, true)
+      if (straightFlush.length === CardCombo.FULL_HAND.count) {
+        hand = getSpecificHand(new Deck(straightFlush, false), true, combo.count, FullHandCombo.STRAIGHT_FLUSH.isValid)
+      }
+      break;
+  }
+  if (hand) deck.removeCards(hand.cards)
+  return hand;
+}
+
+const getSpecificHand = (deck: Deck, suitMatters: boolean, count: number, isValidFx: (h: Hand) => boolean) => {
+  const { suitCount, rankCount } = calculateDeckCount(deck)
+  let cards: Card[] = [];
+
+  if (suitMatters) {
+    for (const suit of shuffle(Object.keys(suitCount))) {
+      const { count: filteredCount, cards: filteredCards } = suitCount[suit]
+      if (count <= filteredCount) cards = shuffle(filteredCards).slice(0, count)
+      if (cards && !isEmpty(cards.length)) {
+        break;
+      }
+    }
+  } else {
+    for (const rank of shuffle(Object.keys(rankCount))) {
+      const { count: filteredCount, cards: filteredCards } = rankCount[rank]
+      if (count <= filteredCount) cards = shuffle(filteredCards).slice(0, count)
+      if (cards && !isEmpty(cards.length)) {
+        break;
+      }
+    }
+  }
+
+  const hand = new Hand(cards.slice(0, count))
+  if (isValidFx(hand)) {
+    return hand;
+  }
+}
 
 // returns which non-sequential combos are present in a player's hand (4 of a kind + flush)
 export const findFullHandNonSequentialCombos = (hand: Hand) => {
@@ -354,6 +484,6 @@ export const buildNonSequentialCombos = (
   return partialHands.filter((p) => p.hand.cards.length === MAX_PLAYABLE_CARDS)
 };
 
-export const logMessage = (message) => {
+export const logMessage = (message: string) => {
   console.log(SEPARATOR + message + SEPARATOR);
 };
