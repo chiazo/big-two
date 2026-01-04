@@ -16,7 +16,7 @@ export class Deck {
     shuffle = true,
     cards = this.createCards(),
   ) {
-    if (cards.length !== DECK_SIZE) {
+    if (cards.length > DECK_SIZE) {
       throw new RangeError(`Number of cards in deck does not match ${DECK_SIZE}`);
     }
 

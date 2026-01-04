@@ -4,6 +4,7 @@ import { Card } from "../game/card";
 import { Deck } from "../game/deck";
 import { CardSuit, RANKS } from "../game/constants";
 import { first, isEmpty, last } from "underscore";
+import { DECK_SIZE } from "../game/common";
 
 describe("deck.test.ts", () => {
     const lowestCard = new Card(CardSuit.DIAMONDS.toString(), CardSuit.DIAMONDS.symbol, 3)
@@ -52,8 +53,9 @@ describe("deck.test.ts", () => {
     });
 
     describe("edge cases", () => {
-        it("throws if card count is not standrd", () => {
-            assert.throws(() => new Deck(true, [lowestCard, highestCard]))
+        it("throws if card count is not standard", () => {
+            const cards: Card[] = Array(DECK_SIZE + 1).fill(lowestCard)
+            assert.throws(() => new Deck(true, cards))
         });
     });
 })

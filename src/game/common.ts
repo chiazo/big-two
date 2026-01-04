@@ -214,8 +214,8 @@ const isFullHouse = (hand: Hand): boolean => {
 
 // Four cards of the same rank and one random card
 const isFourOfAKind = (hand: Hand): boolean => {
-  const atMostTwoSuits = [...new Set(hand.suit())].length < 3;
-  if (!atMostTwoSuits) {
+  const atMostTwoRanks = [...new Set(hand.rank())].length < 3;
+  if (!atMostTwoRanks) {
     return false;
   }
 
@@ -296,7 +296,7 @@ const findStraight = (deck: Deck, isFlush: boolean = false): Card[] => {
   return []
 }
 
-export const getRandomHand = (deck: Deck = new Deck(), c: COMBOS = COMBOS.SINGLE, fullHand: FULL_HAND_TYPES = FULL_HAND_TYPES.FLUSH): Hand | undefined => {
+export const getDesiredHand = (deck: Deck = new Deck(), c: COMBOS = COMBOS.SINGLE, fullHand: FULL_HAND_TYPES = FULL_HAND_TYPES.FLUSH): Hand | undefined => {
   const combo = CardCombo[c]
   let hand;
 
@@ -310,7 +310,7 @@ export const getRandomHand = (deck: Deck = new Deck(), c: COMBOS = COMBOS.SINGLE
     case FULL_HAND_TYPES.STRAIGHT:
       deck.shuffle()
       const straight = findStraight(deck)
-      hand = getSpecificHand(new Deck(true, straight), true, combo.count, FullHandCombo.STRAIGHT.isValid)
+      hand = getSpecificHand(new Deck(true, straight), false, combo.count, FullHandCombo.STRAIGHT.isValid)
       break;
     case FULL_HAND_TYPES.FLUSH:
       hand = getSpecificHand(deck, true, combo.count, FullHandCombo.FLUSH.isValid)
@@ -327,11 +327,7 @@ export const getRandomHand = (deck: Deck = new Deck(), c: COMBOS = COMBOS.SINGLE
       const single = getSpecificHand(deck, false, CardCombo.SINGLE.count, CardCombo.SINGLE.isValid)
       if (four && single) {
         const result = new Hand(four.cards.concat(single.cards))
-        if (result && FullHandCombo.FOUR_OF_A_KIND.isValid(result)) {
-          hand = result
-          hand.type = FULL_HAND_TYPES.FOUR_OF_A_KIND
-
-        }
+        if (result && FullHandCombo.FOUR_OF_A_KIND.isValid(result)) hand = result
       }
       break;
     case FULL_HAND_TYPES.STRAIGHT_FLUSH:
@@ -341,11 +337,22 @@ export const getRandomHand = (deck: Deck = new Deck(), c: COMBOS = COMBOS.SINGLE
       }
       break;
   }
-  if (hand) deck.removeCards(hand.cards)
+  if (hand) {
+    deck.removeCards(hand.cards)
+    hand.type = fullHand ? fullHand : combo.toString()
+  }
+
   return hand;
 }
 
 const getSpecificHand = (deck: Deck, suitMatters: boolean, count: number, isValidFx: (h: Hand) => boolean) => {
+  if (deck.cards.length === count) {
+    const hand = new Hand(deck.cards.slice(0, count))
+    if (isValidFx(hand)) {
+      return hand;
+    }
+  }
+
   const { suitCount, rankCount } = calculateDeckCount(deck)
   let cards: Card[] = [];
 
