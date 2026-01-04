@@ -5,6 +5,7 @@ import {
     calculateHandCount,
     CardCombo,
     findHandCount,
+    FullHandCombo,
     getDesiredHand
 } from "../game/common";
 import { verifyHand, getSpecificHandAndRank } from "./common"
@@ -56,14 +57,23 @@ describe("hand.test.ts", () => {
             it("verifies random hand", () => {
                 verifyHand(COMBOS.FULL_HAND, FULL_HAND_TYPES.FLUSH);
             })
+            it("beats a straight", () => {
+                verifyFullHandBeatsAnother(FULL_HAND_TYPES.FLUSH, FULL_HAND_TYPES.STRAIGHT)
+            })
         });
         describe("full house", () => {
             it("verifies random hand", () => {
                 verifyHand(
                     COMBOS.FULL_HAND,
                     FULL_HAND_TYPES.FULL_HOUSE,
-                    (c, h) => !isEmpty(findHandCount(calculateHandCount(h), 3))
+                    (c, h) => Object.entries(calculateHandCount(h)).some(([key, val]) => val === 3 && parseInt(key) === c.rank)
                 );
+            })
+            it("beats a straight", () => {
+                verifyFullHandBeatsAnother(FULL_HAND_TYPES.FULL_HOUSE, FULL_HAND_TYPES.STRAIGHT)
+            })
+            it("beats a flush", () => {
+                verifyFullHandBeatsAnother(FULL_HAND_TYPES.FULL_HOUSE, FULL_HAND_TYPES.FLUSH)
             })
 
         });
@@ -75,11 +85,32 @@ describe("hand.test.ts", () => {
                     (c, h) => !isEmpty(findHandCount(calculateHandCount(h), 4))
                 );
             })
+            it("beats a straight", () => {
+                verifyFullHandBeatsAnother(FULL_HAND_TYPES.FOUR_OF_A_KIND, FULL_HAND_TYPES.STRAIGHT)
+            })
+            it("beats a flush", () => {
+                verifyFullHandBeatsAnother(FULL_HAND_TYPES.FOUR_OF_A_KIND, FULL_HAND_TYPES.FLUSH)
+            })
+            it("beats a full house", () => {
+                verifyFullHandBeatsAnother(FULL_HAND_TYPES.FOUR_OF_A_KIND, FULL_HAND_TYPES.FULL_HOUSE)
+            })
 
         });
         describe("straight flush", () => {
             it("verifies random hand", () => {
                 verifyHand(COMBOS.FULL_HAND, FULL_HAND_TYPES.STRAIGHT_FLUSH);
+            })
+            it("beats a straight", () => {
+                verifyFullHandBeatsAnother(FULL_HAND_TYPES.STRAIGHT_FLUSH, FULL_HAND_TYPES.STRAIGHT)
+            })
+            it("beats a flush", () => {
+                verifyFullHandBeatsAnother(FULL_HAND_TYPES.STRAIGHT_FLUSH, FULL_HAND_TYPES.FLUSH)
+            })
+            it("beats a full house", () => {
+                verifyFullHandBeatsAnother(FULL_HAND_TYPES.STRAIGHT_FLUSH, FULL_HAND_TYPES.FULL_HOUSE)
+            })
+            it("beats a four of a kind", () => {
+                verifyFullHandBeatsAnother(FULL_HAND_TYPES.STRAIGHT_FLUSH, FULL_HAND_TYPES.FOUR_OF_A_KIND)
             })
         });
     });
@@ -117,12 +148,36 @@ const verifyHandBeatsAnother = (c: CardCombo) => {
     const ace = getSpecificHandAndRank(deck, c, 1)
     const king = getSpecificHandAndRank(deck, c, 13)
     const two = getSpecificHandAndRank(deck, c, 2)
-    assert(ace && king && two && ace.beats(king) && two.beats(ace) && two.beats(king))
+    const result = ace && king && two && ace.beats(king) && two.beats(ace) && two.beats(king)
+    if (!result) {
+        console.log('YIKEZ 1')
+    }
+    assert(result)
+}
+
+const verifyFullHandBeatsAnother = (a: FULL_HAND_TYPES, b: FULL_HAND_TYPES | undefined = undefined): void => {
+    const deck = new Deck();
+    const c = COMBOS.FULL_HAND
+
+    if (b) {
+        const one = a === FULL_HAND_TYPES.FULL_HOUSE ? getSpecificHandAndRank(deck, CardCombo.TRIPLE, 13)?.join(getDesiredHand(deck, COMBOS.PAIR)) : getDesiredHand(deck, c, a, 2)
+        const two = b === FULL_HAND_TYPES.FULL_HOUSE ? getSpecificHandAndRank(deck, CardCombo.TRIPLE, 12)?.join(getDesiredHand(deck, COMBOS.PAIR)) : getDesiredHand(deck, c, b, 2)
+        assert(one && two && one.beats(two))
+        return;
+    }
+    const ace = a === FULL_HAND_TYPES.FULL_HOUSE ? getSpecificHandAndRank(deck, CardCombo.TRIPLE, 1)?.join(getDesiredHand(deck, COMBOS.PAIR)) : getDesiredHand(deck, c, a, 1)
+    const king = b === FULL_HAND_TYPES.FULL_HOUSE ? getSpecificHandAndRank(deck, CardCombo.TRIPLE, 13)?.join(getDesiredHand(deck, COMBOS.PAIR)) : getDesiredHand(deck, c, a, 13)
+    const result = ace && king && ace.beats(king)
+    if (!result) {
+        console.log('YIKEZ')
+    }
+    assert(result)
 }
 
 const verifyTwoWins = (c: CardCombo) => {
     const deck = new Deck();
     const twoOfSpades = getSpecificHandAndRank(deck, c, 2, CardSuit.SPADES)
     const twoOfHearts = getSpecificHandAndRank(deck, c, 2, CardSuit.HEARTS)
-    assert(twoOfSpades && twoOfHearts && twoOfSpades.beats(twoOfHearts))
+    const result = twoOfSpades && twoOfHearts && twoOfSpades.beats(twoOfHearts)
+    assert(result)
 }

@@ -5,17 +5,22 @@ import {
     CardCombo,
     getDesiredHand,
     getSpecificHand,
-    sortCards
+    sortCards,
 } from "../game/common";
 import { CardSuit, COMBOS, FULL_HAND_TYPES } from "../game/constants";
 import { Deck } from "../game/deck";
 import { Hand } from "../game/hand";
 
-
 const defaultFilter = (c: Card, h: Hand) => true;
-export const getSpecificHandAndRank = (d: Deck, c: CardCombo, r: number, s: CardSuit | undefined = undefined) => {
-    return getSpecificHand(d, !!s, c.count, (h) => true, r, s)
-}
+
+export const getSpecificHandAndRank = (
+    d: Deck,
+    c: CardCombo,
+    r: number,
+    s: CardSuit | undefined = undefined
+) => {
+    return getSpecificHand(d, !!s, c.count, (h) => true, r, s);
+};
 export const verifyHand = (
     c: COMBOS,
     f: FULL_HAND_TYPES | undefined = undefined,
@@ -28,9 +33,15 @@ export const verifyHand = (
     assert.strictEqual(hand.type, f ? f : c.toString());
     assert.strictEqual(hand.count(), combo.count);
 
-    const max = last(
-        hand.cards.filter((c) => maxFilter(c, hand)).sort(sortCards)
-    );
+    const sortedCards = hand.cards
+        .filter((c) => maxFilter(c, hand))
+        .sort(sortCards);
+    assert(sortCards.length > 0);
+    const max = last(sortedCards);
+
+    if (!max) {
+        console.log('YIKEZ')
+    }
     assert(max);
     assert.strictEqual(hand.max(), max);
 };
