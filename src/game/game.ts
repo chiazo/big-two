@@ -174,8 +174,6 @@ class Stats {
   }
 }
 
-// TODO: Adapt computer strategy to not always play 2 at start of game / in combos immediately
-// i.e. play 2nd best hand if it's available
 export class Game {
   players: Player[];
   deck: Deck;

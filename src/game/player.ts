@@ -193,9 +193,20 @@ export class Player {
     // const maxRank =
     //   availableMoves.map((c) => c.hand.cards.reduce(getMaxRank)).sort(sortCards).map((c) => c.rank).pop()
 
-    const bestCards = [...new Set(availableMoves.filter((m) => m.hand.beats(lastHandPlayed)).map((m) => parseInt(m.rank)))]
-    const randomCard = bestCards[random(bestCards.length - 1)]
-    const randomlyDecideToSkip = random(100) <= CHANCE_OF_SKIPPING
+    const bestCards = shuffle([...new Set(availableMoves.filter((m) => m.hand.beats(lastHandPlayed)).map((m) => parseInt(m.rank)))])
+    const randomIdx = random(bestCards.length - 1)
+    const randomCard = bestCards[randomIdx]
+    const randomlyDecideToSkip =  random(100) <= CHANCE_OF_SKIPPING
+
+
+
+    const cards = this.hand.cards
+      .filter((c) => c.rank === randomCard)
+      .slice(0, CardCombo[type].count);
+
+    if (cards.length === 0) {
+      return;
+    }
 
     // simulate players skipping even when they can indeed play 
     if (randomlyDecideToSkip) {
@@ -203,12 +214,6 @@ export class Player {
       return;
     }
 
-    const cards = this.hand.cards
-      .filter((c) => c.rank === randomCard)
-      .slice(0, CardCombo[type].count);
-    if (cards.length === 0) {
-      return;
-    }
     return new Hand(cards);
   }
 
