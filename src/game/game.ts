@@ -56,7 +56,7 @@ const promptUserDuringGame = async (
   player: Player,
   lastHandPlayed: Hand | undefined,
   round: number
-) => {
+): Promise<Hand | undefined> => {
   if (player.isComputer) {
     return;
   }
@@ -94,7 +94,7 @@ const promptUserDuringGame = async (
     logMessage(
       `${player.name} played an invalid combo (err: ${error}). Try again.`
     );
-    await promptUserDuringGame(player, lastHandPlayed, round);
+    return await promptUserDuringGame(player, lastHandPlayed, round);
   } else {
     if (comboPlayed && lastHandPlayed) {
       if (comboPlayed.cards.length !== lastHandPlayed.cards.length) {
@@ -103,14 +103,14 @@ const promptUserDuringGame = async (
           } played cards that don't match the number of cards in the last hand played (${lastHandPlayed.cards.length
           }). The hand to beat is ${lastHandPlayed.toString()} Try again.`
         );
-        await promptUserDuringGame(player, lastHandPlayed, round);
+        return await promptUserDuringGame(player, lastHandPlayed, round);
       }
       if (!comboPlayed.beats(lastHandPlayed)) {
         logMessage(
           `${player.name
           } played a combo that doesn't beat the last hand played (${lastHandPlayed.toString()}). Try again.`
         );
-        await promptUserDuringGame(player, lastHandPlayed, round);
+        return await promptUserDuringGame(player, lastHandPlayed, round);
       }
     }
     if (
@@ -144,33 +144,30 @@ class Stats {
   currOrder: Player[];
 
   constructor(players: Player[]) {
-    this.currOrder = players
+    this.currOrder = players;
   }
 
   update(lastHandPlayed: Hand | undefined, currPlayer: string): boolean {
     if (lastHandPlayed) {
-      this.lastHandPlayed = lastHandPlayed
-      this.lastPlayer = currPlayer
+      this.lastHandPlayed = lastHandPlayed;
+      this.lastPlayer = currPlayer;
       return true;
     }
     return false;
   }
 
   checkIfRoundIsOver(players: Player[], currPlayer: Player) {
-    const otherPlayers = players.filter((p) => p.name !== currPlayer.name)
-    const everyoneSkipped = otherPlayers.every((p) => p.skip)
-    if (
-      this.lastPlayer == currPlayer.name &&
-      everyoneSkipped
-    ) {
+    const otherPlayers = players.filter((p) => p.name !== currPlayer.name);
+    const everyoneSkipped = otherPlayers.every((p) => p.skip);
+    if (this.lastPlayer == currPlayer.name && everyoneSkipped) {
       this.currOrder = [currPlayer].concat(otherPlayers);
-      this.lastHandPlayed = undefined
-      this.lastPlayer = ""
+      this.lastHandPlayed = undefined;
+      this.lastPlayer = "";
       this.roundOver = true;
     } else {
       this.roundOver = false;
     }
-    return this.roundOver
+    return this.roundOver;
   }
 }
 
@@ -291,7 +288,9 @@ export class Game {
 
   #startingPlayerOrder(lastPlayer: string): Player[] {
     if (lastPlayer || lastPlayer.length > 0) {
-      throw new Error("Stats has not been correctly reset at the beginning of the game.")
+      throw new Error(
+        "Stats has not been correctly reset at the beginning of the game."
+      );
     }
 
     // the player with 3 of diamonds starts the game
@@ -299,9 +298,10 @@ export class Game {
       p.has(Deck.LOWEST_CARD)
     );
     const firstPlayer = startingOrder.slice(0, 1).pop();
-    return startingOrder.concat(
-      this.players.filter((p) => p.name !== firstPlayer?.name)
+    const otherPlayers = this.players.filter(
+      (p) => p.name !== firstPlayer?.name
     );
+    return startingOrder.concat(otherPlayers);
   }
 
   async startRound(stats: Stats) {
@@ -317,19 +317,21 @@ export class Game {
         if (player.skip) {
           continue;
         }
-        await this.#playTurn(player, stats)
+        await this.#playTurn(player, stats);
       }
     }
   }
 
   async #playTurn(player: Player, stats: Stats) {
-    const [tookTurn, result] = player.isComputer ? await this.#computerTakesTurn(player, stats) : await this.#livePlayerTakesTurn(player, stats)
+    const [tookTurn, result] = player.isComputer
+      ? await this.#computerTakesTurn(player, stats)
+      : await this.#livePlayerTakesTurn(player, stats);
 
     if (!player.skip && tookTurn && result) {
       player.removeCards(result);
-      const prevHand = stats.lastHandPlayed
-      const prevPlayer = stats.lastPlayer
-      stats.update(result, player.name)
+      const prevHand = stats.lastHandPlayed;
+      const prevPlayer = stats.lastPlayer;
+      stats.update(result, player.name);
 
       logMove(
         `${player.name} is taking their turn${!isEmpty(prevPlayer) ? ` after ${prevPlayer}` : ``
@@ -337,10 +339,12 @@ export class Game {
       );
       result.logMove();
     }
-
   }
 
-  async #livePlayerTakesTurn(player: Player, stats: Stats): Promise<[boolean, Hand | undefined]> {
+  async #livePlayerTakesTurn(
+    player: Player,
+    stats: Stats
+  ): Promise<[boolean, Hand | undefined]> {
     // display available combos to user
     player.logCombos(stats.lastHandPlayed);
     const userInput = await promptUserDuringGame(
@@ -349,15 +353,18 @@ export class Game {
       this.round
     );
 
-    return Promise.resolve([!!userInput, userInput])
+    return Promise.resolve([!!userInput, userInput]);
   }
 
-  async #computerTakesTurn(player: Player, stats: Stats): Promise<[boolean, Hand | undefined]> {
-    const skipped: Promise<[boolean, Hand | undefined]> = Promise.resolve([false, undefined]);
-    const computerResult = player.autoPlay(
-      stats.lastHandPlayed,
-      this.round
-    );
+  async #computerTakesTurn(
+    player: Player,
+    stats: Stats
+  ): Promise<[boolean, Hand | undefined]> {
+    const skipped: Promise<[boolean, Hand | undefined]> = Promise.resolve([
+      false,
+      undefined,
+    ]);
+    const computerResult = player.autoPlay(stats.lastHandPlayed, this.round);
     // i.e. the computer couldn't beat the last hand
     if (!computerResult) {
       player.skipRound();

@@ -39,14 +39,14 @@ export class Hand {
       const triple = findHandCount(counts, 3);
       const max = this.cards.reverse().find((c) => c.rank === parseInt(triple));
       if (max == undefined) {
-        throw this.throwErr("max full house")
+        throw this.throwErr("max full house");
       }
-      return max
+      return max;
     }
     if (this.count() > 0) {
-      return this.cards[this.cards.length - 1]
+      return this.cards[this.cards.length - 1];
     }
-    throw this.throwErr("max")
+    throw this.throwErr("max");
   }
 
   count() {
@@ -62,27 +62,33 @@ export class Hand {
   }
 
   throwErr(operation: string) {
-    throw new Error(`${operation} is invalid for this hand.`)
+    throw new Error(`${operation} is invalid for this hand.`);
   }
 
   join(hand: Hand | undefined) {
     if (hand) {
       if (this.cards.length + hand.cards.length > MAX_PLAYABLE_CARDS) {
-        throw new RangeError("cannot merge hands and exceed 5 cards")
+        throw new RangeError("cannot merge hands and exceed 5 cards");
       }
 
       if (this.cards.some((c) => hand.has(c))) {
-        throw new Error("cannot merge hands that have overlapping cards")
+        throw new Error("cannot merge hands that have overlapping cards");
       }
 
       this.cards = this.cards.concat(hand.cards);
       let type;
       if (this.cards.length === 5) {
-        type = Object.values(FullHandCombo).filter((c: FullHandCombo) => c.isValid(this)).map((c: FullHandCombo) => c.key).pop()
+        type = Object.values(FullHandCombo)
+          .filter((c: FullHandCombo) => c.isValid(this))
+          .map((c: FullHandCombo) => c.key)
+          .pop();
       } else {
-        type = Object.values(CardCombo).filter((c: CardCombo) => c.isValid(this)).map((c: CardCombo) => c.toString()).pop()
+        type = Object.values(CardCombo)
+          .filter((c: CardCombo) => c.isValid(this))
+          .map((c: CardCombo) => c.toString())
+          .pop();
       }
-      if (type) this.type = type
+      if (type) this.type = type;
       this.sort();
     }
     return this;
@@ -94,12 +100,22 @@ export class Hand {
   }
 
   has(card: Card) {
-    return this.cards.map((c) => c.toString()).includes(card.toString())
+    return this.cards.map((c) => c.toString()).includes(card.toString());
   }
 
   logMove() {
-    const table = new Table({ columns: [{ name: "rank", color: "blue" }, { name: "suit", color: "green" }, { name: "symbol", color: "yellow" }], defaultColumnOptions: { alignment: "center" }, rows: this.cards.map((c) => { return { rank: c.rank, suit: c.suit, symbol: c.symbol } }) });
-    table.printTable()
+    const table = new Table({
+      columns: [
+        { name: "rank", color: "blue" },
+        { name: "suit", color: "green" },
+        { name: "symbol", color: "yellow" },
+      ],
+      defaultColumnOptions: { alignment: "center" },
+      rows: this.cards.map((c) => {
+        return { rank: c.rank, suit: c.suit, symbol: c.symbol };
+      }),
+    });
+    table.printTable();
   }
 
   toString() {

@@ -12,12 +12,11 @@ export class Deck {
   size: number;
   cards: Card[];
 
-  constructor(
-    shuffle = true,
-    cards = this.createCards(),
-  ) {
+  constructor(shuffle = true, cards = this.createCards()) {
     if (cards.length > DECK_SIZE) {
-      throw new RangeError(`Number of cards in deck does not match ${DECK_SIZE}`);
+      throw new RangeError(
+        `Number of cards in deck does not match ${DECK_SIZE}`
+      );
     }
 
     this.size = cards.length;
@@ -34,7 +33,7 @@ export class Deck {
   }
 
   has(c: Card) {
-    return this.cards.map((c) => c.toString()).includes(c.toString())
+    return this.cards.map((c) => c.toString()).includes(c.toString());
   }
 
   sort() {
@@ -44,7 +43,7 @@ export class Deck {
   removeCards(cards: Card[]) {
     const mapping = cards.map((c) => c.toString());
     this.cards = this.cards.filter((c) => !mapping.includes(c.toString()));
-    this.size = this.cards.length
+    this.size = this.cards.length;
   }
 
   createCards() {

@@ -1,5 +1,4 @@
-import { CardSuit, RANKS } from "./constants.ts"
-
+import { CardSuit, RANKS } from "./constants.ts";
 
 export class Card {
   suit: string;
@@ -9,7 +8,11 @@ export class Card {
   faceCard: boolean;
 
   constructor(suit: string, symbol: string, rank: number) {
-    const [validSuit, validRank, validSymbol] = this.validateCard(suit, rank, symbol);
+    const [validSuit, validRank, validSymbol] = this.validateCard(
+      suit,
+      rank,
+      symbol
+    );
 
     if (validSuit && validRank && validSymbol) {
       const faceCard = this.#isFaceCard(rank);
@@ -19,12 +22,16 @@ export class Card {
       this.faceCard = faceCard;
       this.name = this.#getCardName(rank, faceCard);
     } else {
-      throw new RangeError(`${rank} of ${symbol} is invalid`)
+      throw new RangeError(`${rank} of ${symbol} is invalid`);
     }
   }
 
   validateCard(suit: string, rank: number, symbol: string) {
-    return [this.validateSuit(suit), this.validateRank(rank), this.validateSymbol(symbol)];
+    return [
+      this.validateSuit(suit),
+      this.validateRank(rank),
+      this.validateSymbol(symbol),
+    ];
   }
 
   validateSuit(suit: string) {
@@ -43,7 +50,9 @@ export class Card {
   }
 
   validateSymbol(symbol: string) {
-    return Object.values(CardSuit).map((c: CardSuit) => c.symbol).includes(symbol);
+    return Object.values(CardSuit)
+      .map((c: CardSuit) => c.symbol)
+      .includes(symbol);
   }
 
   toString() {
@@ -52,7 +61,8 @@ export class Card {
 
   #getCardName(rank: number, isFaceCard: boolean) {
     const faceCardName = Object.keys(RANKS.FACE_CARDS).find(
-      (c: string) => RANKS.FACE_CARDS[c as keyof typeof RANKS.FACE_CARDS] === rank
+      (c: string) =>
+        RANKS.FACE_CARDS[c as keyof typeof RANKS.FACE_CARDS] === rank
     );
     if (isFaceCard) {
       return faceCardName || "";
