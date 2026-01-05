@@ -149,9 +149,6 @@ const verifyHandBeatsAnother = (c: CardCombo) => {
     const king = getSpecificHandAndRank(deck, c, 13)
     const two = getSpecificHandAndRank(deck, c, 2)
     const result = ace && king && two && ace.beats(king) && two.beats(ace) && two.beats(king)
-    if (!result) {
-        console.log('YIKEZ 1')
-    }
     assert(result)
 }
 
@@ -168,9 +165,7 @@ const verifyFullHandBeatsAnother = (a: FULL_HAND_TYPES, b: FULL_HAND_TYPES | und
     const ace = a === FULL_HAND_TYPES.FULL_HOUSE ? getSpecificHandAndRank(deck, CardCombo.TRIPLE, 1)?.join(getDesiredHand(deck, COMBOS.PAIR)) : getDesiredHand(deck, c, a, 1)
     const king = b === FULL_HAND_TYPES.FULL_HOUSE ? getSpecificHandAndRank(deck, CardCombo.TRIPLE, 13)?.join(getDesiredHand(deck, COMBOS.PAIR)) : getDesiredHand(deck, c, a, 13)
     const result = ace && king && ace.beats(king)
-    if (!result) {
-        console.log('YIKEZ')
-    }
+
     assert(result)
 }
 

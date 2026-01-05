@@ -15,6 +15,8 @@ export enum FULL_HAND_TYPES {
     STRAIGHT_FLUSH = "STRAIGHT_FLUSH",
 }
 
+export const CHANCE_OF_SKIPPING = 5
+
 export const RANKS = {
     NUMERAL_CARDS: {
         MIN: {

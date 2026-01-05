@@ -1,23 +1,20 @@
 import { Table } from "console-table-printer";
-import { groupBy } from 'underscore';
+import { groupBy, random, shuffle } from 'underscore';
 import { Card } from "./card.ts";
 import {
   buildNonSequentialCombos,
   calculateHandCount,
   CardCombo,
   FullHandCombo,
-  getMaxHand,
-  getMaxRank,
   logMessage,
   MAX_PLAYABLE_CARDS,
   SEPARATOR,
   sortByRank,
-  sortCards,
-  sortHands,
+  sortCards
 } from "./common.ts";
-import { Hand } from "./hand.js";
-import { COMBOS } from "./constants.ts"
+import { CHANCE_OF_SKIPPING, COMBOS } from "./constants.ts";
 import { Deck } from "./deck.ts";
+import { Hand } from "./hand.js";
 
 export class SubCombo {
   rank: string;
@@ -59,8 +56,7 @@ export class Player {
   }
 
   #randomName() {
-    const index = Math.floor(Math.random() * Player.RANDOM_NAMES.length);
-    const name = Player.RANDOM_NAMES[index];
+    const name = Player.RANDOM_NAMES[random(Player.RANDOM_NAMES.length - 1)];
     Player.RANDOM_NAMES = Player.RANDOM_NAMES.filter((n) => n !== name);
     return name;
   }
@@ -151,13 +147,15 @@ export class Player {
       const mustPlayThreeOfDiamonds = isRoundLeader && round === 0 && this.has(Deck.LOWEST_CARD)
       if (mustPlayThreeOfDiamonds) {
         bestHandForRound = Object.values(this.combos).flat().find((s) => s.hand.has(Deck.LOWEST_CARD))?.hand
-      } else { // otherwise play the best overall hand
-        const bestCombo = Object.keys(this.combos).reverse().find(k => { const subcombos = this.combos[k as keyof typeof COMBOS]; return subcombos && subcombos.length > 0 })
+      } else { // otherwise decide whether to play the best overall hand or one that just barely beats the last player
+        const bestCombo = Object.keys(this.combos).find(k => { const subcombos = this.combos[k as keyof typeof COMBOS]; return subcombos && subcombos.length > 0 })
         const bestComboValues: SubCombo[] = this.combos[bestCombo as keyof typeof COMBOS] || []
-        bestHandForRound = bestComboValues.sort((a: SubCombo, b: SubCombo) => sortHands(a.hand, b.hand) === a.hand ? 1 : -1).pop()?.hand
+        // old logic for always choosing the best hand to play
+        // bestHandForRound = bestComboValues.sort((a: SubCombo, b: SubCombo) => sortHands(a.hand, b.hand) === a.hand ? 1 : -1).pop()?.hand
+        bestHandForRound = shuffle(bestComboValues).pop()?.hand
       }
     } else { // this means we have to follow the pattern already set by the prev player
-      bestHandForRound = this.bestHand(COMBOS[lastHandPlayed.type as keyof typeof COMBOS]);
+      bestHandForRound = this.bestHand(COMBOS[lastHandPlayed.type as keyof typeof COMBOS], lastHandPlayed);
     }
 
     // skip if you don't have a hand for this round
@@ -179,20 +177,38 @@ export class Player {
     return result;
   }
 
-  bestHand(type: COMBOS) {
+  bestHand(type: COMBOS, lastHandPlayed: Hand) {
     const availableMoves = this.combos[type];
     if (!availableMoves || availableMoves.length == 0) {
       return;
     }
     if (type === COMBOS.FULL_HAND) {
-      return availableMoves.map((c) => c.hand).reduce(getMaxHand);
+      const moves = availableMoves.map((c) => c.hand).filter((h) => h.beats(lastHandPlayed))
+      return moves[random(moves.length - 1)]
+      // old logic to always return the best hand
+      // return availableMoves.map((c) => c.hand).reduce(getMaxHand);
     }
-    const maxRank =
-      availableMoves.map((c) => c.hand.cards.reduce(getMaxRank)).sort(sortCards).map((c) => c.rank).pop()
+
+    // old logic to always choose best card
+    // const maxRank =
+    //   availableMoves.map((c) => c.hand.cards.reduce(getMaxRank)).sort(sortCards).map((c) => c.rank).pop()
+
+    const bestCards = [...new Set(availableMoves.filter((m) => m.hand.beats(lastHandPlayed)).map((m) => parseInt(m.rank)))]
+    const randomCard = bestCards[random(bestCards.length - 1)]
+    const randomlyDecideToSkip = random(100) <= CHANCE_OF_SKIPPING
+
+    // simulate players skipping even when they can indeed play 
+    if (randomlyDecideToSkip) {
+      console.log(`${this.name} wants to save some of their cards for later...`)
+      return;
+    }
 
     const cards = this.hand.cards
-      .filter((c) => c.rank === maxRank)
+      .filter((c) => c.rank === randomCard)
       .slice(0, CardCombo[type].count);
+    if (cards.length === 0) {
+      return;
+    }
     return new Hand(cards);
   }
 

@@ -39,9 +39,6 @@ export const verifyHand = (
     assert(sortCards.length > 0);
     const max = last(sortedCards);
 
-    if (!max) {
-        console.log('YIKEZ')
-    }
     assert(max);
     assert.strictEqual(hand.max(), max);
 };

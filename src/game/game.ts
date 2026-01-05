@@ -329,14 +329,13 @@ export class Game {
 
     if (!player.skip && tookTurn && result) {
       player.removeCards(result);
-      if (player.name === stats.lastPlayer) {
-        console.log('YIKES!')
-        player.skipRound()
-      }
+      const prevHand = stats.lastHandPlayed
+      const prevPlayer = stats.lastPlayer
       stats.update(result, player.name)
+
       logMove(
-        `${player.name} is taking their turn${!isEmpty(stats.lastPlayer) ? ` after ${stats.lastPlayer}` : ``
-        }! They played a ${stats.lastHandPlayed?.type.replace("_", " ")}.`
+        `${player.name} is taking their turn${!isEmpty(prevPlayer) ? ` after ${prevPlayer}` : ``
+        }! They played a ${(prevHand || result)?.type.replace("_", " ")}.`
       );
       result.logMove();
     }
