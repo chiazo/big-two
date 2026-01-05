@@ -1,10 +1,10 @@
 import { input, select } from "@inquirer/prompts";
 import { Table } from "console-table-printer";
-import fs from "fs";
+import fs, { stat } from "fs";
 import { select as multi } from "inquirer-select-pro";
 import { load } from "js-yaml";
 import { dirname, resolve } from "path";
-import { isEmpty } from "underscore";
+import { isEmpty, first } from "underscore";
 import { fileURLToPath } from "url";
 import { DECK_SIZE, logMessage, MAX_PLAYERS, SKIP_ROUND } from "./common.ts";
 import { Deck } from "./deck.js";
@@ -99,15 +99,18 @@ const promptUserDuringGame = async (
     if (comboPlayed && lastHandPlayed) {
       if (comboPlayed.cards.length !== lastHandPlayed.cards.length) {
         logMessage(
-          `${player.name
-          } played cards that don't match the number of cards in the last hand played (${lastHandPlayed.cards.length
+          `${
+            player.name
+          } played cards that don't match the number of cards in the last hand played (${
+            lastHandPlayed.cards.length
           }). The hand to beat is ${lastHandPlayed.toString()} Try again.`
         );
         return await promptUserDuringGame(player, lastHandPlayed, round);
       }
       if (!comboPlayed.beats(lastHandPlayed)) {
         logMessage(
-          `${player.name
+          `${
+            player.name
           } played a combo that doesn't beat the last hand played (${lastHandPlayed.toString()}). Try again.`
         );
         return await promptUserDuringGame(player, lastHandPlayed, round);
@@ -137,7 +140,7 @@ const handleUserInput = (
   }
 };
 
-class Stats {
+export class Stats {
   lastPlayer: string = "";
   lastHandPlayed: Hand | undefined = undefined;
   roundOver: boolean = false;
@@ -239,19 +242,23 @@ export class Game {
     this.startRound(stats);
   }
 
-  isGameOver() {
+  isGameOver(stats: Stats) {
     // game ends when a single player has finished all their cards
-    this.players.forEach((p) => {
+    stats.currOrder.forEach((p) => {
       p.calculateCombos();
     });
-    const winners = this.players
-      .filter((p) => p.hand.cards.length === 0)
-      .map((p) => p.name);
-    winners.map((w) => {
-      logMessage(`The game has ended! ${w} is the winner!`);
-    });
+    const winner = first(
+      stats.currOrder
+        .filter((p) => p.hand.cards.length === 0)
+        .map((p) => p.name)
+    );
+
+    if (winner) {
+      logMessage(`The game has ended! ${winner} is the winner!`);
+    }
+
     this.logGameState();
-    return winners.length > 0;
+    return !!winner;
   }
 
   logGameState() {
@@ -305,7 +312,7 @@ export class Game {
   }
 
   async startRound(stats: Stats) {
-    while (!this.isGameOver()) {
+    while (!this.isGameOver(stats)) {
       for (const player of stats.currOrder) {
         const roundIsOver = stats.checkIfRoundIsOver(this.players, player);
 
@@ -334,7 +341,8 @@ export class Game {
       stats.update(result, player.name);
 
       logMove(
-        `${player.name} is taking their turn${!isEmpty(prevPlayer) ? ` after ${prevPlayer}` : ``
+        `${player.name} is taking their turn${
+          !isEmpty(prevPlayer) ? ` after ${prevPlayer}` : ``
         }! They played a ${(prevHand || result)?.type.replace("_", " ")}.`
       );
       result.logMove();
@@ -346,14 +354,19 @@ export class Game {
     stats: Stats
   ): Promise<[boolean, Hand | undefined]> {
     // display available combos to user
-    player.logCombos(stats.lastHandPlayed);
+    player.logCombos(stats);
+
+    if (stats.lastPlayer === player.name) {
+      return [false, undefined];
+    }
+
     const userInput = await promptUserDuringGame(
       player,
       stats.lastHandPlayed,
       this.round
     );
 
-    return Promise.resolve([!!userInput, userInput]);
+    return [!!userInput, userInput];
   }
 
   async #computerTakesTurn(

@@ -15,6 +15,7 @@ import {
 import { CHANCE_OF_SKIPPING, COMBOS } from "./constants.ts";
 import { Deck } from "./deck.ts";
 import { Hand } from "./hand.js";
+import { Stats } from "./game.ts";
 
 export class SubCombo {
   rank: string;
@@ -264,8 +265,13 @@ export class Player {
       .map((c) => c.toString());
   }
 
-  logCombos(lastComboPlayed: Hand | undefined) {
+  logCombos(stats: Stats) {
     this.calculateCombos();
+    if (stats.lastPlayer === this.name) {
+      return;
+    }
+    const lastComboPlayed = stats.lastHandPlayed;
+
     console.log(`\n ---- The combos you have available are: ---- `);
     let keys: COMBOS[] = Object.keys(this.combos).map(
       (k) => COMBOS[k as keyof typeof COMBOS]
