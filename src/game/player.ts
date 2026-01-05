@@ -43,7 +43,7 @@ export class Player {
   skip: boolean;
   isComputer: boolean;
 
-  constructor(hand: Hand, name: string = this.randomName(), isComputer: boolean = true) {
+  constructor(hand: Hand, name: string = this.#randomName(), isComputer: boolean = true) {
     this.hand = hand;
     this.name = name;
     this.isComputer = isComputer;
@@ -58,7 +58,7 @@ export class Player {
     return this.hand.cards.some((c) => c.toString() === card.toString())
   }
 
-  randomName() {
+  #randomName() {
     const index = Math.floor(Math.random() * Player.RANDOM_NAMES.length);
     const name = Player.RANDOM_NAMES[index];
     Player.RANDOM_NAMES = Player.RANDOM_NAMES.filter((n) => n !== name);

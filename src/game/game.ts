@@ -184,7 +184,7 @@ export class Game {
     } else if (players.filter((p) => p.length < 1).length > 0) {
       this.restart("Empty names are not allowed. Try again.");
     } else if (playerCount > 1) {
-      logMessage("Multi-player is not currently supported.");
+      this.restart("Multi-player is not currently supported.");
     } else {
       this.start(players);
     }
