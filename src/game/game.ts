@@ -137,7 +137,45 @@ const handleUserInput = (
   }
 };
 
+class Stats {
+  lastPlayer: string = "";
+  lastHandPlayed: Hand | undefined = undefined;
+  roundOver: boolean = false;
+  currOrder: Player[];
+
+  constructor(players: Player[]) {
+    this.currOrder = players
+  }
+
+  update(lastHandPlayed: Hand | undefined, currPlayer: string): boolean {
+    if (lastHandPlayed) {
+      this.lastHandPlayed = lastHandPlayed
+      this.lastPlayer = currPlayer
+      return true;
+    }
+    return false;
+  }
+
+  checkIfRoundIsOver(players: Player[], currPlayer: Player) {
+    const otherPlayers = players.filter((p) => p.name !== currPlayer.name)
+    const everyoneSkipped = otherPlayers.every((p) => p.skip)
+    if (
+      this.lastPlayer == currPlayer.name &&
+      everyoneSkipped
+    ) {
+      this.currOrder = [currPlayer].concat(otherPlayers);
+      this.lastHandPlayed = undefined
+      this.lastPlayer = ""
+      this.roundOver = true;
+    } else {
+      this.roundOver = false;
+    }
+    return this.roundOver
+  }
+}
+
 // TODO: Adapt computer strategy to not always play 2 at start of game / in combos immediately
+// i.e. play 2nd best hand if it's available
 export class Game {
   players: Player[];
   deck: Deck;
@@ -202,7 +240,8 @@ export class Game {
       this.addPlayer();
     }
 
-    this.startRound();
+    const stats: Stats = new Stats(this.#startingPlayerOrder(""));
+    this.startRound(stats);
   }
 
   isGameOver() {
@@ -252,99 +291,91 @@ export class Game {
     }
   }
 
-  playerOrder(lastPlayer: string): Player[] {
-    if (lastPlayer === undefined || lastPlayer.length === 0) {
-      // the player with 3 of diamonds starts the game
-      const startingOrder: Player[] = this.players.filter((p) =>
-        p.has(Deck.LOWEST_CARD)
-      );
-      const firstPlayer = startingOrder.slice(0, 1).pop();
-      return startingOrder.concat(
-        this.players.filter((p) => p.name !== firstPlayer?.name)
-      );
+  #startingPlayerOrder(lastPlayer: string): Player[] {
+    if (lastPlayer || lastPlayer.length > 0) {
+      throw new Error("Stats has not been correctly reset at the beginning of the game.")
     }
-    const winner: Player[] = this.players.filter((p) => p.name === lastPlayer);
-    return winner.concat(this.players.filter((p) => p.name !== lastPlayer));
+
+    // the player with 3 of diamonds starts the game
+    const startingOrder: Player[] = this.players.filter((p) =>
+      p.has(Deck.LOWEST_CARD)
+    );
+    const firstPlayer = startingOrder.slice(0, 1).pop();
+    return startingOrder.concat(
+      this.players.filter((p) => p.name !== firstPlayer?.name)
+    );
   }
 
-  async startRound() {
-    const stats: {
-      lastPlayer: string;
-      lastHandPlayed: Hand | undefined;
-      roundOver: boolean;
-      currOrder: Player[];
-    } = {
-      lastPlayer: "",
-      lastHandPlayed: undefined,
-      roundOver: false,
-      currOrder: this.playerOrder(""),
-    };
-
+  async startRound(stats: Stats) {
     while (!this.isGameOver()) {
       for (const player of stats.currOrder) {
-        this.updateStats(stats, player);
+        const roundIsOver = stats.checkIfRoundIsOver(this.players, player);
+
+        if (roundIsOver) {
+          this.resetRound(player.name);
+          this.round++;
+        }
+
         if (player.skip) {
           continue;
         }
-        if (!player.isComputer) {
-          // display available combos to user
-          player.logCombos(stats.lastHandPlayed);
-          const userInput = await promptUserDuringGame(
-            player,
-            stats.lastHandPlayed,
-            this.round
-          );
-          if (userInput) {
-            stats.lastHandPlayed = userInput;
-            stats.lastPlayer = player.name;
-          }
-        } else {
-          const computerResult = player.autoPlay(
-            stats.lastHandPlayed,
-            this.round
-          );
-          // i.e. the computer couldn't beat the last hand
-          if (!computerResult) {
-            player.skipRound();
-            continue;
-          }
-
-          if (
-            computerResult.comboPlayed &&
-            computerResult.validCombo &&
-            (!stats.lastHandPlayed ||
-              computerResult.comboPlayed.beats(stats.lastHandPlayed))
-          ) {
-            stats.lastHandPlayed = computerResult.comboPlayed;
-            stats.lastPlayer = player.name;
-            player.removeCards(computerResult.comboPlayed);
-          }
-        }
-        if (!player.skip) {
-          logMove(
-            `${player.name} is taking their turn${!isEmpty(stats.lastPlayer) ? ` after ${stats.lastPlayer}` : ``
-            }! They played a ${stats.lastHandPlayed?.type.replace("_", " ")}.`
-          );
-          stats.lastHandPlayed?.logMove();
-        }
+        await this.#playTurn(player, stats)
       }
     }
   }
 
-  updateStats(stats: any, player: Player) {
-    if (
-      stats.lastPlayer == player.name &&
-      this.players.filter((p) => p.name !== player.name).every((p) => p.skip)
-    ) {
-      stats.currOrder = this.playerOrder(player.name);
-      const winner = player.name;
-      stats.lastPlayer = "";
-      stats.lastHandPlayed = undefined;
-      stats.roundOver = true;
-      this.resetRound(winner);
-      this.round++;
+  async #playTurn(player: Player, stats: Stats) {
+    const [tookTurn, result] = player.isComputer ? await this.#computerTakesTurn(player, stats) : await this.#livePlayerTakesTurn(player, stats)
+
+    if (!player.skip && tookTurn && result) {
+      player.removeCards(result);
+      if (player.name === stats.lastPlayer) {
+        console.log('YIKES!')
+        player.skipRound()
+      }
+      stats.update(result, player.name)
+      logMove(
+        `${player.name} is taking their turn${!isEmpty(stats.lastPlayer) ? ` after ${stats.lastPlayer}` : ``
+        }! They played a ${stats.lastHandPlayed?.type.replace("_", " ")}.`
+      );
+      result.logMove();
     }
-    stats.roundOver = false;
+
+  }
+
+  async #livePlayerTakesTurn(player: Player, stats: Stats): Promise<[boolean, Hand | undefined]> {
+    // display available combos to user
+    player.logCombos(stats.lastHandPlayed);
+    const userInput = await promptUserDuringGame(
+      player,
+      stats.lastHandPlayed,
+      this.round
+    );
+
+    return Promise.resolve([!!userInput, userInput])
+  }
+
+  async #computerTakesTurn(player: Player, stats: Stats): Promise<[boolean, Hand | undefined]> {
+    const skipped: Promise<[boolean, Hand | undefined]> = Promise.resolve([false, undefined]);
+    const computerResult = player.autoPlay(
+      stats.lastHandPlayed,
+      this.round
+    );
+    // i.e. the computer couldn't beat the last hand
+    if (!computerResult) {
+      player.skipRound();
+      return skipped;
+    }
+
+    if (
+      computerResult.comboPlayed &&
+      computerResult.validCombo &&
+      (!stats.lastHandPlayed ||
+        computerResult.comboPlayed.beats(stats.lastHandPlayed))
+    ) {
+      return Promise.resolve([true, computerResult.comboPlayed]);
+    }
+    return skipped;
   }
 
   resetRound(winner = "") {
