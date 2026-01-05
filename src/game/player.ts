@@ -196,7 +196,7 @@ export class Player {
     const bestCards = shuffle([...new Set(availableMoves.filter((m) => m.hand.beats(lastHandPlayed)).map((m) => parseInt(m.rank)))])
     const randomIdx = random(bestCards.length - 1)
     const randomCard = bestCards[randomIdx]
-    const randomlyDecideToSkip =  random(100) <= CHANCE_OF_SKIPPING
+    const randomlyDecideToSkip = random(100) <= CHANCE_OF_SKIPPING
 
 
 
@@ -254,17 +254,16 @@ export class Player {
       [COMBOS.TRIPLE]: this.getTripleCombos(),
     };
 
-    const currResultHelp = this.getFullHandCombos(combos)
-    combos[COMBOS.FULL_HAND] = currResultHelp
+    combos[COMBOS.FULL_HAND] = this.getFullHandCombos(combos)
     this.combos = combos;
   }
 
   getSingleCombos(): SubCombo[] {
     const handCount = calculateHandCount(this.hand);
     const singles: SubCombo[] = Object.entries(handCount)
-      .filter(([, count]) => count === 1)
+      .filter(([, count]) => count >= 1)
       .map(([rank]) => {
-        return new SubCombo(rank, new Hand(this.hand.cards.filter((c) => c.rank === parseInt(rank))), COMBOS.SINGLE);
+        return new SubCombo(rank, new Hand(this.hand.cards.filter((c) => c.rank === parseInt(rank)).slice(0, 1)), COMBOS.SINGLE);
       });
 
     return singles;
@@ -273,9 +272,9 @@ export class Player {
   getPairCombos(): SubCombo[] {
     const handCount = calculateHandCount(this.hand);
     const pairs = Object.entries(handCount)
-      .filter(([, count]) => count === 2)
+      .filter(([, count]) => count >= 2)
       .map(([rank]) => {
-        return new SubCombo(rank, new Hand(this.hand.cards.filter((c) => c.rank === parseInt(rank))), COMBOS.PAIR);
+        return new SubCombo(rank, new Hand(this.hand.cards.filter((c) => c.rank === parseInt(rank)).slice(0, 2)), COMBOS.PAIR);
       });
 
     return pairs;
@@ -284,9 +283,9 @@ export class Player {
   getTripleCombos(): SubCombo[] {
     const handCount = calculateHandCount(this.hand);
     const tripleCombos = Object.entries(handCount)
-      .filter(([, count]) => count === 3)
+      .filter(([, count]) => count >= 3)
       .map(([rank]) => {
-        return new SubCombo(rank, new Hand(this.hand.cards.filter((c) => c.rank === parseInt(rank))), COMBOS.TRIPLE);
+        return new SubCombo(rank, new Hand(this.hand.cards.filter((c) => c.rank === parseInt(rank)).slice(0, 3)), COMBOS.TRIPLE);
       });
 
     return tripleCombos;

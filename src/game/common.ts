@@ -3,7 +3,7 @@ import { Hand } from "./hand.js";
 import { Deck } from "./deck.js";
 import { SubCombo } from "./player.js";
 import { COMBOS, FULL_HAND_TYPES, CardSuit, RANKS } from "./constants.js";
-import { shuffle, isEmpty, last } from 'underscore';
+import { shuffle, isEmpty, last, first } from 'underscore';
 
 // CONSTANTS
 export const DECK_SIZE = 52;
@@ -153,7 +153,7 @@ export const getMaxHand = (a: Hand, b: Hand): Hand => {
   if (a.cards.length !== b.cards.length) {
     throw new Error("comparison between mismatched hands")
   }
-  if (a.cards.length === 5) {
+  if (a.cards.length === MAX_PLAYABLE_CARDS) {
     return getMaxFullHand(a, b);
   }
   const aMax = a.max();
@@ -441,8 +441,8 @@ export const buildNonSequentialCombos = (
 ): SubCombo[] => {
   const partialHands = findFullHandNonSequentialCombos(playerHand);
   const singles = existingCombos[COMBOS.SINGLE] ? [...existingCombos[COMBOS.SINGLE].filter((c) => c.type == COMBOS.SINGLE)] : []
-  const doubles = existingCombos[COMBOS.PAIR] ? [...existingCombos[COMBOS.PAIR].filter((c) => c.type == COMBOS.PAIR)] : []
   const triples = existingCombos[COMBOS.TRIPLE] ? [...existingCombos[COMBOS.TRIPLE].filter((c) => c.type === COMBOS.TRIPLE)] : []
+  const doubles = existingCombos[COMBOS.PAIR] ? [...existingCombos[COMBOS.PAIR].filter((c) => c.type == COMBOS.PAIR && !triples.map((c) => c.rank).includes(c.rank))] : []
 
   // look for full house combos
   if (doubles.length > 0 && triples.length > 0) {
@@ -455,8 +455,8 @@ export const buildNonSequentialCombos = (
   }
 
   // handle four of a kind
-  partialHands.filter((p) => p.type === FULL_HAND_TYPES.FOUR_OF_A_KIND).map((s) => {
-    s.hand = s.hand.join(singles.pop()?.hand)
+  partialHands.filter((p: SubCombo) => p.type === FULL_HAND_TYPES.FOUR_OF_A_KIND).map((p) => {
+    p.hand = p.hand.join(singles.filter((s) => parseInt(s.rank) !== first(p.hand.cards)?.rank).pop()?.hand)
   })
 
   return partialHands.filter((p) => p.hand.cards.length === MAX_PLAYABLE_CARDS)
