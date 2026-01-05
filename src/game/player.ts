@@ -272,7 +272,7 @@ export class Player {
     }
     const lastComboPlayed = stats.lastHandPlayed;
 
-    console.log(`\n ---- The combos you have available are: ---- `);
+    console.log(`\n ---- The combos ${this.name} has available are: ---- `);
     let keys: COMBOS[] = Object.keys(this.combos).map(
       (k) => COMBOS[k as keyof typeof COMBOS]
     );

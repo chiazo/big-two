@@ -71,7 +71,11 @@ const promptUserDuringGame = async (
   );
 
   const selectedCards = await multi({
-    message: "What would you like to do or play?",
+    message: `${player.name}, what would you like to do or play?${
+      lastHandPlayed
+        ? ` (The hand to beat is ${lastHandPlayed.toString()})`
+        : ""
+    }`,
     multiple: true,
     options: options,
   });
